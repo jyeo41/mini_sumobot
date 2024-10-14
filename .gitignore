@@ -1,0 +1,9 @@
+# ignore the unnecessary directories
+build/
+Debug/
+
+# ignore Eclipse files
+.settings
+.metadata
+
+
