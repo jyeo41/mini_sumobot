@@ -1,3 +1,9 @@
 [submodule "external/printf"]
 	path = external/printf
 	url = https://github.com/mpaland/printf.git
+[submodule "external/STM32CubeF4"]
+	path = external/STM32CubeF4
+	url = https://github.com/STMicroelectronics/STM32CubeF4.git
+[submodule "external/cmsis_device_f4"]
+	path = external/cmsis_device_f4
+	url = https://github.com/STMicroelectronics/cmsis_device_f4.git
