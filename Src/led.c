@@ -1,6 +1,5 @@
 #include "stm32f4xx.h"
 #include "led.h"
-
 /* User Manual UM1472 states:
 
 User Green LED:    I/O PD12
@@ -71,6 +70,7 @@ void led_red_toggle(void)
     }
 }
 
+/* Toggle the blue LED */
 void led_blue_off(void)
 {
     if (GPIOD->ODR & GPIO_ODR_OD15) {

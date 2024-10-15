@@ -8,7 +8,7 @@ int main(void)
 
 	while (1) {
 		for (i = 0; i < 1000000; i++) {}
-		led_red_toggle();
+		led_green_toggle();
 	}
 
 }

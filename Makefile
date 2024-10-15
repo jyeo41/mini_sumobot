@@ -2,7 +2,7 @@ TARGET = sumobot_mini
 BUILD_DIR = build
 
 # Add list of all necessary directories
-BASE_DIR = /home/joon/devel/embedded_programming/ST
+BASE_DIR = $(HOME)/devel/embedded_programming/ST
 PROJECT_DIR = $(BASE_DIR)/STM32CubeIDE/stm32_workspace/sumobot_mini
 PROJECT_INC = $(PROJECT_DIR)/Inc
 PROJECT_SRC = $(PROJECT_DIR)/Src
@@ -23,8 +23,14 @@ MCU = -DSTM32F407xx # needed when compiling .c to .o files to specify the header
 C_INCLUDES = $(PROJECT_INC) $(CMSIS_CORE_INC) $(CMSIS_DEVICE_INC)
 W_FLAGS = -Wall -Werror -Wextra
 OPT_FLAGS = -O0
-DEBUG_LEVEL = -g3 # maximum debug level, needed to not hang during code stepping in GDB CLI
-C_FLAGS = $(CPU) $(MCU) $(addprefix -I, $(C_INCLUDES)) $(W_FLAGS) $(OPT_FLAGS) $(DEBUG_LEVEL)
+
+# Use compiler generated dependency ".d" files to recompile with "make"
+# even when editing header ".h" files
+DEP_FLAGS = -MMD -MP
+
+# maximum debug level, needed to not hang during code stepping in GDB CLI
+DEBUG_LEVEL = -g3
+C_FLAGS = $(CPU) $(MCU) $(DEP_FLAGS) $(addprefix -I, $(C_INCLUDES)) $(W_FLAGS) $(OPT_FLAGS) $(DEBUG_LEVEL)
 
 # ASM Compiling
 ASM_SOURCES = $(foreach dir, $(PROJECT_ASM), $(wildcard $(dir)/*.s))
@@ -38,7 +44,8 @@ LD_FLAGS = $(CPU) -T$(LD_SCRIPT)
 C_SOURCES = $(foreach dir, $(PROJECT_SRC), $(wildcard $(dir)/*.c)) # create a list of all source files prepended with their directory tree
 OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(C_SOURCES:.c=.o))) # create a list of all the target object files for build/*.o
 OBJECTS += $(addprefix $(BUILD_DIR)/, $(notdir $(ASM_SOURCES:.s=.o))) # do the same thing for the startup .s file
-
+DEP_SOURCES = $(patsubst %.o, %.d, $(OBJECTS))
+# Debugging lines to check the built paths from above commands
 #$(info C_SOURCES: $(C_SOURCES))
 #$(info OBJECTS: $(OBJECTS))
 
@@ -46,14 +53,15 @@ $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)
 	$(CC) $(LD_FLAGS) $(OBJECTS) -o $@
 
 $(BUILD_DIR)/%.o: $(PROJECT_SRC)/%.c | $(BUILD_DIR)
-	$(CC) $(C_FLAGS) -c -o $@ $^
+	$(CC) $(C_FLAGS) -c -o $@ $<
 
 $(BUILD_DIR)/%.o: $(PROJECT_ASM)/%.s | $(BUILD_DIR)
-	$(CC) $(ASM_FLAGS) -c -o $@ $^
+	$(CC) $(ASM_FLAGS) -c -o $@ $<
 
 $(BUILD_DIR):
-	mkdir $@
+	@mkdir $@
 
+-include $(DEP_SOURCES)
 
 .PHONY: all clean flash debug
 
@@ -85,4 +93,4 @@ debug:
 	kill $$ST_UTIL_PID # kill the GDB server after quitting the GDB session
 
 clean:
-	rm -rf build
+	@rm -rf build
