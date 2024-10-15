@@ -45,8 +45,8 @@
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths.850712384" name="Include paths (-I)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="../Inc"/>
-									<listOptionValue builtIn="false" value="/home/joon/dev/embedded_programming/ST/CMSIS/Core/Include"/>
-									<listOptionValue builtIn="false" value="/home/joon/dev/embedded_programming/ST/CMSIS/Device/ST/STM32F4xx/Include"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/external/cmsis_device_f4/Include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/external/STM32CubeF4/Drivers/CMSIS/Core/Include&quot;"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.otherflags.1348701752" name="Other flags" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.otherflags" useByScannerDiscovery="true" valueType="stringList">
 									<listOptionValue builtIn="false" value="-DSTM32F407xx"/>
