@@ -2,15 +2,14 @@ TARGET = sumobot_mini
 BUILD_DIR = build
 
 # Add list of all necessary directories
-BASE_DIR = $(HOME)/devel/embedded_programming/ST
-PROJECT_DIR = $(BASE_DIR)/STM32CubeIDE/stm32_workspace/sumobot_mini
+PROJECT_DIR = .
 PROJECT_INC = $(PROJECT_DIR)/Inc
 PROJECT_SRC = $(PROJECT_DIR)/Src
 PROJECT_ASM = $(PROJECT_DIR)/Startup
 
 # CMSIS header directories
-CMSIS_CORE_INC = $(BASE_DIR)/CMSIS/Core/Include
-CMSIS_DEVICE_INC = $(BASE_DIR)/CMSIS/Device/ST/STM32F4xx/Include
+CMSIS_CORE_INC = $(PROJECT_DIR)/external/STM32CubeF4/Drivers/CMSIS/Core/Include
+CMSIS_DEVICE_INC = $(PROJECT_DIR)/external/cmsis_device_f4/Include
 
 # Toolchain
 CC = arm-none-eabi-gcc
@@ -63,7 +62,7 @@ $(BUILD_DIR):
 
 -include $(DEP_SOURCES)
 
-.PHONY: all clean flash debug
+.PHONY: all clean flash debug print-%
 
 all: $(BUILD_DIR)/$(TARGET).elf
 
@@ -91,6 +90,14 @@ debug:
 	echo "Starting GDB..."; \
 	arm-none-eabi-gdb $(BUILD_DIR)/$(TARGET).elf --eval-command="target extended-remote :4242"; \ # eval command to connect to our target immediately after
 	kill $$ST_UTIL_PID # kill the GDB server after quitting the GDB session
+
+# -% is a wildcard that represents any string. When you type the command 
+#  make print-BASE_DIR, this matches the print-% rule and replaces % with BASE_DIR.
+#  Next, $* will expand to the stem of the target which is the text matching the %.
+#  Running make print-BASE_DIR would expand $* to BASE_DIR.
+#  $($*) would expand to $(BASE_DIR) which would echo out the VALUE of BASE_DIR
+print-%:
+	@echo $*=$($*)
 
 clean:
 	@rm -rf build
