@@ -6,4 +6,6 @@ Debug/
 .settings
 .metadata
 
+# ignore cppcheck report file
+cppcheck.report
 

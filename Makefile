@@ -62,7 +62,7 @@ $(BUILD_DIR):
 
 -include $(DEP_SOURCES)
 
-.PHONY: all clean flash debug print-%
+.PHONY: all clean flash debug print-% cppcheck
 
 all: $(BUILD_DIR)/$(TARGET).elf
 
@@ -90,6 +90,21 @@ debug:
 	echo "Starting GDB..."; \
 	arm-none-eabi-gdb $(BUILD_DIR)/$(TARGET).elf --eval-command="target extended-remote :4242"; \ # eval command to connect to our target immediately after
 	kill $$ST_UTIL_PID # kill the GDB server after quitting the GDB session
+
+# Ignore the syscalls and sysmem files because they're just used to fill stub functions called by new/nanolibc.
+# --inline-suppr is useful to suppress certain functions I won't need
+# --supress=missingIncludeSystem is needed in conjunction with setting vendor header files as <> instead of ""
+#	otherwise cppcheck will keep complaining about missing "stm32f4xx.h" headers.
+# The cppcheck.report shows a list of all the available checks and whether it ran them or not. The F2P version runs less.
+CPPCHECK = cppcheck
+CPPCHECK_IGNORE = $(PROJECT_SRC)/syscalls.c $(PROJECT_SRC)/sysmem.c
+cppcheck:
+	@$(CPPCHECK) --quiet --enable=all --inline-suppr \
+	--error-exitcode=1 --suppress=missingIncludeSystem \
+	--suppress=unusedFunction \
+	--checkers-report=cppcheck.report \
+	--suppress=checkersReport \
+	$(PROJECT_SRC) -I$(PROJECT_INC) $(addprefix -i, $(CPPCHECK_IGNORE))
 
 # -% is a wildcard that represents any string. When you type the command 
 #  make print-BASE_DIR, this matches the print-% rule and replaces % with BASE_DIR.
