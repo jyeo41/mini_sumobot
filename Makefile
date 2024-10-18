@@ -11,6 +11,9 @@ PROJECT_ASM = $(PROJECT_DIR)/Startup
 CMSIS_CORE_INC = $(PROJECT_DIR)/external/STM32CubeF4/Drivers/CMSIS/Core/Include
 CMSIS_DEVICE_INC = $(PROJECT_DIR)/external/cmsis_device_f4/Include
 
+# ARM GNU Toolchain GCC binary path
+ARM_NONE_EABI_GCC = $(HOME)/tools/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
+
 # Toolchain
 CC = arm-none-eabi-gcc
 
