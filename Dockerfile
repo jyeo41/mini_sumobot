@@ -55,5 +55,8 @@ RUN cd $HOME && \
 	tar xvf arm*.tar.* &&\
 	rm -rf arm*.tar.* &&\
 	mkdir -p ~/tools &&\
-	mv ./arm-gnu-* ~/tools
+	mv ./arm-gnu-* ~/tools &&\
+	cd ~/tools/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/lib/thumb/ &&\
+	rm -rf v8* &&\
+	rm -rf v6*
 CMD /bin/bash
