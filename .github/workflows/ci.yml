@@ -1,0 +1,16 @@
+# Need to run the container as --user root otherwise there's permission issues when trying to
+# checkout the repo using actions/checkout@v4. V4 is needed because V3 is deprecated using NodeJS v16
+on: [push]
+jobs:
+  static_analysis_and_build:
+    runs-on: ubuntu-latest
+    container:
+      image: sionnix/mini_sumobot:latest
+      options: --user root
+    steps:
+      - name: check out the repo, static analysis, build
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - run: make cppcheck
+      - run: make

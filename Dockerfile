@@ -9,6 +9,11 @@
 # Link to the correct ARM GNU Toolchain:
 #	https://developer.arm.com/-/media/Files/downloads/gnu/12.3.rel1/binrel/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi.tar.xz
 #
+# When pushing the docker images to the repo on docker hub, the name of the image needs to match the name of the repo.
+# My repo on docker hub is named "sionnix/mini_sumobot"
+# When testing the Dockerfile I used the name "archtest" for the built image.
+# Run "docker tag archtest2 sionnix/mini_sumobot:latest" to change the name or "tag" of the image to the same as the remote repo
+# Run "push sionnix/mini_sumobot:latest" to push that image to the remote repo of the same name
 
 # Arch complains about a missing secret-key if we don't run pacman-key --init before running pacman -Syu
 #
@@ -43,20 +48,20 @@ RUN cd $HOME &&\
 FROM archlinux:latest
 COPY --from=0 /home/build_user/yay-bin/yay-bin-*.pkg.* ./
 RUN pacman-key --init && \
-	pacman -Syu --noconfirm make cppcheck wget &&\
+	pacman -Syu --noconfirm make cppcheck wget sudo &&\
 	pacman -U --noconfirm yay-bin-*.pkg.* &&\
 	rm -rf /var/lib/pacman/sync &&\
 	rm -rf /var/cache/pacman/pkg &&\
 	rm -rf yay-bin-*.pkg.* &&\
-	useradd -m arch
+	useradd -m -G wheel arch &&\
+	echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 USER arch
 RUN cd $HOME && \
 	wget https://developer.arm.com/-/media/Files/downloads/gnu/12.3.rel1/binrel/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi.tar.xz &&\
 	tar xvf arm*.tar.* &&\
 	rm -rf arm*.tar.* &&\
-	mkdir -p ~/tools &&\
-	mv ./arm-gnu-* ~/tools &&\
-	cd ~/tools/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/lib/thumb/ &&\
-	rm -rf v8* &&\
-	rm -rf v6*
+	sudo mv ./arm-gnu-* /opt &&\
+	cd /opt/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/lib/thumb/ &&\
+	sudo rm -rf v8* &&\
+	sudo rm -rf v6*
 CMD /bin/bash
