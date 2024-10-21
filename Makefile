@@ -11,6 +11,9 @@ PROJECT_ASM = $(PROJECT_DIR)/Startup
 CMSIS_CORE_INC = $(PROJECT_DIR)/external/STM32CubeF4/Drivers/CMSIS/Core/Include
 CMSIS_DEVICE_INC = $(PROJECT_DIR)/external/cmsis_device_f4/Include
 
+# ARM GNU Toolchain GCC binary path
+ARM_NONE_EABI_GCC = $(HOME)/tools/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
+
 # Toolchain
 CC = arm-none-eabi-gcc
 
@@ -62,7 +65,7 @@ $(BUILD_DIR):
 
 -include $(DEP_SOURCES)
 
-.PHONY: all clean flash debug print-% cppcheck
+.PHONY: all clean flash debug print-% cppcheck docker-clean
 
 all: $(BUILD_DIR)/$(TARGET).elf
 
@@ -113,6 +116,18 @@ cppcheck:
 #  $($*) would expand to $(BASE_DIR) which would echo out the VALUE of BASE_DIR
 print-%:
 	@echo $*=$($*)
+
+# Delete all containers and volume use first then delete all the images after.
+# Need to check to make sure containers and images exist first using if then syntax,
+#	otherwise docker complains and says theres an error if you try to run the rm or rmi command
+#	with no existing containers/images.
+docker-clean:
+	@if [ -n "$$(docker ps -aq)" ]; then \
+		docker rm -vf $$(docker ps -aq); \
+	fi;
+	@if [ -n "$$(docker images -aq)" ]; then \
+		docker rmi -f $$(docker images -aq); \
+	fi
 
 clean:
 	@rm -rf build
