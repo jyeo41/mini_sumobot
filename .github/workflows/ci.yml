@@ -1,0 +1,14 @@
+on: [push]
+jobs:
+  static_analysis_and_build:
+    runs-on: ubuntu-latest
+    container:
+      image: sionnix/mini_sumobot:latest
+      options: --user root
+    steps:
+      - name: check out the repo
+        uses: actions/checkout@v4
+      - name: cppcheck static analysis
+        run: make cppcheck
+      - name: compile and build the code
+        run: make

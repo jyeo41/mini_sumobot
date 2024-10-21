@@ -9,6 +9,11 @@
 # Link to the correct ARM GNU Toolchain:
 #	https://developer.arm.com/-/media/Files/downloads/gnu/12.3.rel1/binrel/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi.tar.xz
 #
+# When pushing the docker images to the repo on docker hub, the name of the image needs to match the name of the repo.
+# My repo on docker hub is named "sionnix/mini_sumobot"
+# When testing the Dockerfile I used the name "archtest" for the built image.
+# Run "docker tag archtest2 sionnix/mini_sumobot:latest" to change the name or "tag" of the image to the same as the remote repo
+# Run "push sionnix/mini_sumobot:latest" to push that image to the remote repo of the same name
 
 # Arch complains about a missing secret-key if we don't run pacman-key --init before running pacman -Syu
 #
