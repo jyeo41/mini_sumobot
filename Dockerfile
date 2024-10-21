@@ -53,17 +53,15 @@ RUN pacman-key --init && \
 	rm -rf /var/lib/pacman/sync &&\
 	rm -rf /var/cache/pacman/pkg &&\
 	rm -rf yay-bin-*.pkg.* &&\
-	groupadd docker &&\
-	useradd -m -G wheel,docker arch &&\
+	useradd -m -G wheel arch &&\
 	echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 USER arch
 RUN cd $HOME && \
 	wget https://developer.arm.com/-/media/Files/downloads/gnu/12.3.rel1/binrel/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi.tar.xz &&\
 	tar xvf arm*.tar.* &&\
 	rm -rf arm*.tar.* &&\
-	mkdir -p ~/tools &&\
-	mv ./arm-gnu-* ~/tools &&\
-	cd ~/tools/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/lib/thumb/ &&\
-	rm -rf v8* &&\
-	rm -rf v6*
+	sudo mv ./arm-gnu-* /opt &&\
+	cd /opt/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/lib/thumb/ &&\
+	sudo rm -rf v8* &&\
+	sudo rm -rf v6*
 CMD /bin/bash
