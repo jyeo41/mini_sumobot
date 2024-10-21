@@ -53,7 +53,7 @@ RUN pacman-key --init && \
 	rm -rf /var/lib/pacman/sync &&\
 	rm -rf /var/cache/pacman/pkg &&\
 	rm -rf yay-bin-*.pkg.* &&\
-	useradd -m arch
+	useradd -m -g root arch
 USER arch
 RUN cd $HOME && \
 	wget https://developer.arm.com/-/media/Files/downloads/gnu/12.3.rel1/binrel/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi.tar.xz &&\

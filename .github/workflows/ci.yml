@@ -4,7 +4,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: sionnix/mini_sumobot:latest
-      options: --user root
+      # options: --user root
     steps:
       - name: check out the repo
         uses: actions/checkout@v4
