@@ -48,12 +48,14 @@ RUN cd $HOME &&\
 FROM archlinux:latest
 COPY --from=0 /home/build_user/yay-bin/yay-bin-*.pkg.* ./
 RUN pacman-key --init && \
-	pacman -Syu --noconfirm make cppcheck wget &&\
+	pacman -Syu --noconfirm make cppcheck wget sudo &&\
 	pacman -U --noconfirm yay-bin-*.pkg.* &&\
 	rm -rf /var/lib/pacman/sync &&\
 	rm -rf /var/cache/pacman/pkg &&\
 	rm -rf yay-bin-*.pkg.* &&\
-	useradd -m arch
+	groupadd docker &&\
+	useradd -m -G wheel,docker arch &&\
+	echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 USER arch
 RUN cd $HOME && \
 	wget https://developer.arm.com/-/media/Files/downloads/gnu/12.3.rel1/binrel/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi.tar.xz &&\
