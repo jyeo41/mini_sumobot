@@ -25,4 +25,7 @@ typedef struct {
 }gpio_pin_t;
 
 void gpio_mode_set(gpio_pin_names_e pin, gpio_mode_e mode);
+void gpio_data_output_toggle(gpio_pin_names_e pin_name);
+void gpio_data_output_set(gpio_pin_names_e pin_name);
+void gpio_data_output_clear(gpio_pin_names_e pin_name);
 #endif /* GPIO_H_ */

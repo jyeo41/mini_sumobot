@@ -99,12 +99,12 @@ flash: $(BUILD_DIR)/$(TARGET).elf
 # --supress=missingIncludeSystem is needed in conjunction with setting vendor header files as <> instead of ""
 #	otherwise cppcheck will keep complaining about missing "stm32f4xx.h" headers.
 # The cppcheck.report shows a list of all the available checks and whether it ran them or not. The F2P version runs less.
+# --suppress=unusedFunction \ this is an unused flag for cppcheck
 CPPCHECK = cppcheck
 CPPCHECK_IGNORE = $(PROJECT_SRC)/syscalls.c $(PROJECT_SRC)/sysmem.c
 cppcheck:
 	@$(CPPCHECK) --quiet --enable=all --inline-suppr \
 	--error-exitcode=1 --suppress=missingIncludeSystem \
-	--suppress=unusedFunction \
 	--checkers-report=cppcheck.report \
 	--suppress=checkersReport \
 	$(PROJECT_SRC) -I$(PROJECT_INC) $(addprefix -i, $(CPPCHECK_IGNORE))
