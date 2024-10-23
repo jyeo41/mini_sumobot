@@ -12,6 +12,4 @@ int main(void)
 		for (i = 0; i < 1000000; i++) {}
 		led_green_toggle();
 	}
-
-	
 }
