@@ -1,6 +1,7 @@
 # ignore the unnecessary directories
 build/
 Debug/
+.cache/
 
 # ignore Eclipse files
 .settings
@@ -8,4 +9,7 @@ Debug/
 
 # ignore cppcheck report file
 cppcheck.report
+
+# ignore compile_commands.json which is a clangd file, not used for building
+compile_commands.json
 

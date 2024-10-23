@@ -65,7 +65,7 @@ $(BUILD_DIR):
 
 -include $(DEP_SOURCES)
 
-.PHONY: all clean flash debug print-% cppcheck docker-clean
+.PHONY: all clean flash print-% cppcheck docker-clean
 
 all: $(BUILD_DIR)/$(TARGET).elf
 
@@ -81,18 +81,18 @@ all: $(BUILD_DIR)/$(TARGET).elf
 flash: $(BUILD_DIR)/$(TARGET).elf
 	STM32_Programmer_CLI --connect port=SWD freq=4000 mode=UR reset=HWrst --erase 0 --download $^ --verify --go
 
-debug:
-	@echo "Starting st-util..."
-	st-util & \ # run st-util GDB server in the background
-	ST_UTIL_PID=$$!; \ #save the PID of the background process
-	echo "Waiting for st-util to listen on port 4242..."; \
-	while ! lsof -i :4242; do \ # while loop syntax to check if GDB server is ready
-		sleep 1; \ # keep sleeping until it is ready
-	done; \
-	echo "st-util is now listening on port 4242."; \
-	echo "Starting GDB..."; \
-	arm-none-eabi-gdb $(BUILD_DIR)/$(TARGET).elf --eval-command="target extended-remote :4242"; \ # eval command to connect to our target immediately after
-	kill $$ST_UTIL_PID # kill the GDB server after quitting the GDB session
+#debug:
+#	@echo "Starting st-util..."
+#	st-util & \ # run st-util GDB server in the background
+#	ST_UTIL_PID=$$!; \ #save the PID of the background process
+#	echo "Waiting for st-util to listen on port 4242..."; \
+#	while ! lsof -i :4242; do \ # while loop syntax to check if GDB server is ready
+#		sleep 1; \ # keep sleeping until it is ready
+#	done; \
+#	echo "st-util is now listening on port 4242."; \
+#	echo "Starting GDB..."; \
+#	$(ARM_NONE_EABI_GCC)/arm-none-eabi-gdb $(BUILD_DIR)/$(TARGET).elf --eval-command="target extended-remote :4242"; \ # eval command to connect to our target immediately after
+#	kill $$ST_UTIL_PID # kill the GDB server after quitting the GDB session
 
 # Ignore the syscalls and sysmem files because they're just used to fill stub functions called by new/nanolibc.
 # --inline-suppr is useful to suppress certain functions I won't need

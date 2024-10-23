@@ -1,5 +1,6 @@
 #include <stm32f4xx.h>
 #include "led.h"
+#include "gpio.h"
 /* User Manual UM1472 states:
 
 User Green LED:    I/O PD12
@@ -17,21 +18,21 @@ void led_initialize(void)
 	First clear the bit-field.
 	Then set the bits to 0b01 for GPIO mode*/
 
-    /* Output Direction for Green LED */
-    GPIOD->MODER &= ~GPIO_MODER_MODER12_Msk;
-    GPIOD->MODER |= GPIO_MODER_MODER12_0;
+    ///* Output Direction for Green LED */
+    //GPIOD->MODER &= ~GPIO_MODER_MODER12_Msk;
+    //GPIOD->MODER |= GPIO_MODER_MODER12_0;
 
-    /* Output Direction for Orange LED */
-    GPIOD->MODER &= ~GPIO_MODER_MODER13_Msk;
-    GPIOD->MODER |= GPIO_MODER_MODER13_0;
+    ///* Output Direction for Orange LED */
+    //GPIOD->MODER &= ~GPIO_MODER_MODER13_Msk;
+    //GPIOD->MODER |= GPIO_MODER_MODER13_0;
 
-    /* Output Direction for Red LED */
-    GPIOD->MODER &= ~GPIO_MODER_MODER14_Msk;
-    GPIOD->MODER |= GPIO_MODER_MODER14_0;
+    ///* Output Direction for Red LED */
+    //GPIOD->MODER &= ~GPIO_MODER_MODER14_Msk;
+    //GPIOD->MODER |= GPIO_MODER_MODER14_0;
 
-    /* Output Direction for Blue LED */
-    GPIOD->MODER &= ~GPIO_MODER_MODER15_Msk;
-    GPIOD->MODER |= GPIO_MODER_MODER15_0;
+    ///* Output Direction for Blue LED */
+    //GPIOD->MODER &= ~GPIO_MODER_MODER15_Msk;
+    //GPIOD->MODER |= GPIO_MODER_MODER15_0;
 }
 
 /* PD 12 */
