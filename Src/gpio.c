@@ -1,16 +1,18 @@
 #include <stm32f4xx.h>
+#include <stdbool.h>
 #include "gpio.h"
 
+#define GPIO_BOARD_PINS_LENGTH sizeof(gpio_board_pins)/sizeof(gpio_board_pins[0])
 
 /* Array to map high level pin names (an enum) such as LED_GREEN to the pin's attributes (a struct).
  * This centralizes all the info one would need about a pin, such as the port, pin number, etc.
  * This array is the core implementation of abstracting away the low level register interactions from the user.
  */
 static const gpio_pin_t gpio_board_pins[] = {
-    [LED_GREEN] =   {GPIOD, 12, GPIO_MODE_OUTPUT},
-    [LED_ORANGE] =  {GPIOD, 13, GPIO_MODE_OUTPUT},
-    [LED_RED] =     {GPIOD, 14, GPIO_MODE_OUTPUT},
-    [LED_BLUE] =    {GPIOD, 15, GPIO_MODE_OUTPUT},
+    [LED_GREEN] =   {LED_GREEN, GPIOD, 12, GPIO_MODE_OUTPUT},
+    //[LED_ORANGE] =  {LED_ORANGE, GPIOD, 13, GPIO_MODE_OUTPUT},
+    [LED_RED] =     {LED_RED, GPIOD, 14, GPIO_MODE_OUTPUT},
+    [LED_BLUE] =    {LED_BLUE, GPIOD, 15, GPIO_MODE_OUTPUT},
 };
 
 /* Mapping pin numbers to their corresponding MODE register as a 2D array.
@@ -49,6 +51,28 @@ static const uint32_t gpio_odr_register_bit[] = {
     [14] = GPIO_ODR_OD14,
     [15] = GPIO_ODR_OD15,
 };
+
+void gpio_default_initialize(void)
+{
+    volatile uint8_t i;
+    for (i = 0; i < GPIO_BOARD_PINS_LENGTH; i++) {
+        gpio_mode_set(gpio_board_pins[i].pin_name, gpio_board_pins[i].mode);
+    }
+}
+
+bool gpio_config_compare(gpio_pin_names_e pin_to_check,
+			 gpio_pin_names_e expected_pin_name,
+			 const GPIO_TypeDef* expected_port,
+			 uint8_t expected_pin_number,
+			 uint8_t expected_mode)
+{
+    const gpio_pin_t test_pin = gpio_board_pins[pin_to_check];
+
+    return (test_pin.pin_name == expected_pin_name) &&
+            (test_pin.port == expected_port) &&
+            (test_pin.pin_number == expected_pin_number) &&
+            (test_pin.mode == expected_mode);
+}
 
 void gpio_mode_set(gpio_pin_names_e pin_name, gpio_mode_e mode)
 {
