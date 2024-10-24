@@ -1,6 +1,7 @@
 #include <stm32f4xx.h>
 #include "led.h"
 #include "gpio.h"
+#include "assert_handler.h"
 /* User Manual UM1472 states:
 
 User Green LED:    I/O PD12
@@ -33,5 +34,6 @@ void led_red_toggle(void)
 
 void led_blue_toggle(void)
 {
+    ASSERT(0);
     gpio_data_output_toggle(LED_BLUE);
 }
