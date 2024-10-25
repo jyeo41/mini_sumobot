@@ -12,13 +12,19 @@ CMSIS_CORE_INC = $(PROJECT_DIR)/external/STM32CubeF4/Drivers/CMSIS/Core/Include
 CMSIS_DEVICE_INC = $(PROJECT_DIR)/external/cmsis_device_f4/Include
 
 # ARM GNU Toolchain GCC binary path
-ARM_NONE_EABI_GCC = /opt/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
+ARM_NONE_EABI_BIN = /opt/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
 
 # Toolchain
-CC = $(ARM_NONE_EABI_GCC)/arm-none-eabi-gcc
+CC = $(ARM_NONE_EABI_BIN)/arm-none-eabi-gcc
 
-# Target Architecture
+# Target Architecture and other flags, for assembler, compiler, linker
+# CPU is target architecture.
+# FPU is floating point unit, both the -mfpu AND -mfloat have to be specified together to make use of hardware FPU.
+# SPECS is to use a more lightweight implementation of Newlib C library (which is also a lightweight version of the Std Lib C.
+#	This flag is used to reduce code size by a considerable amount
 CPU = -mcpu=cortex-m4 -mthumb
+FPU = -mfpu=fpv4-sp-d16 -mfloat-abi=hard
+SPECS = --specs=nano.specs
 
 # C Compiling
 MCU = -DSTM32F407xx # needed when compiling .c to .o files to specify the header to use our target MCU
@@ -32,15 +38,15 @@ DEP_FLAGS = -MMD -MP
 
 # maximum debug level, needed to not hang during code stepping in GDB CLI
 DEBUG_LEVEL = -g3
-C_FLAGS = $(CPU) $(MCU) $(DEP_FLAGS) $(addprefix -I, $(C_INCLUDES)) $(W_FLAGS) $(OPT_FLAGS) $(DEBUG_LEVEL)
+C_FLAGS = $(CPU) $(MCU) $(FPU) $(SPECS) $(DEP_FLAGS) $(addprefix -I, $(C_INCLUDES)) $(W_FLAGS) $(OPT_FLAGS) $(DEBUG_LEVEL)
 
 # ASM Compiling
 ASM_SOURCES = $(foreach dir, $(PROJECT_ASM), $(wildcard $(dir)/*.s))
-ASM_FLAGS = $(CPU) $(DEBUG_LEVEL)
+ASM_FLAGS = $(CPU) $(FPU) $(SPECS) $(DEBUG_LEVEL)
 
 # Linking
 LD_SCRIPT = STM32F407VGTX_FLASH.ld
-LD_FLAGS = $(CPU) -T$(LD_SCRIPT)
+LD_FLAGS = $(CPU) $(FPU) $(SPECS) -T$(LD_SCRIPT)
 
 # Find all the .c files and generate .o files
 C_SOURCES = $(foreach dir, $(PROJECT_SRC), $(wildcard $(dir)/*.c)) # create a list of all source files prepended with their directory tree
@@ -65,7 +71,7 @@ $(BUILD_DIR):
 
 -include $(DEP_SOURCES)
 
-.PHONY: all clean flash print-% cppcheck docker-clean
+.PHONY: all clean flash print-% cppcheck docker-clean size
 
 all: $(BUILD_DIR)/$(TARGET).elf
 
@@ -91,7 +97,7 @@ flash: $(BUILD_DIR)/$(TARGET).elf
 #	done; \
 #	echo "st-util is now listening on port 4242."; \
 #	echo "Starting GDB..."; \
-#	$(ARM_NONE_EABI_GCC)/arm-none-eabi-gdb $(BUILD_DIR)/$(TARGET).elf --eval-command="target extended-remote :4242"; \ # eval command to connect to our target immediately after
+#	$(ARM_NONE_EABI_BIN)/arm-none-eabi-gdb $(BUILD_DIR)/$(TARGET).elf --eval-command="target extended-remote :4242"; \ # eval command to connect to our target immediately after
 #	kill $$ST_UTIL_PID # kill the GDB server after quitting the GDB session
 
 # Ignore the syscalls and sysmem files because they're just used to fill stub functions called by new/nanolibc.
@@ -128,6 +134,14 @@ docker-clean:
 	@if [ -n "$$(docker images -aq)" ]; then \
 		docker rmi -f $$(docker images -aq); \
 	fi
+
+# Phony target to check the file size of the target elf file. the arm-none-eabi-size binary splits the sizes into
+# their respective sections:
+#	- .text (contains program code in flash memory)
+#	- .data (initialized globals and static variables, stored in flash and to be copied to RAM)
+#	- .bss (uninitialized globals and statics)
+size: $(BUILD_DIR)/$(TARGET).elf
+	$(ARM_NONE_EABI_BIN)/arm-none-eabi-size $^
 
 clean:
 	@rm -rf build
