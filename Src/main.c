@@ -2,7 +2,6 @@
 #include "led.h"
 #include "gpio.h"
 #include "systick.h"
-#include "assert_handler.h"
 
 int main(void)
 {
@@ -13,6 +12,5 @@ int main(void)
 	while (1) {
 		systick_delay_ms(1000);
 		led_toggle(LED_GREEN);
-		ASSERT(0);
 	}
 }
