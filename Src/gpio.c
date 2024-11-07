@@ -15,9 +15,9 @@
  */
 static gpio_pin_t gpio_board_pins[] = {
     [LED_GREEN] =   {LED_GREEN, GPIOD, 12, GPIO_MODE_OUTPUT},
-    //[LED_ORANGE] =  {LED_ORANGE, GPIOD, 13, GPIO_MODE_OUTPUT},
     [LED_RED] =     {LED_RED, GPIOD, 14, GPIO_MODE_OUTPUT},
     [LED_BLUE] =    {LED_BLUE, GPIOD, 15, GPIO_MODE_OUTPUT},
+    [UART2_BOARD_TX] =    {UART2_BOARD_TX, GPIOA, 2, GPIO_MODE_ALTERNATE},
 };
 
 /* Mapping pin numbers to their corresponding MODE register as a 2D array.
@@ -31,6 +31,9 @@ static gpio_pin_t gpio_board_pins[] = {
  *      The above represents accesing bit field 0 for that specific pin number in the mode register
  */
 static const uint32_t gpio_mode_register_bits[][2] = {
+    [0] = {GPIO_MODER_MODER0_0, GPIO_MODER_MODER0_1},
+    [1] = {GPIO_MODER_MODER1_0, GPIO_MODER_MODER1_1},
+    [2] = {GPIO_MODER_MODER2_0, GPIO_MODER_MODER2_1},
     [12] = {GPIO_MODER_MODER12_0, GPIO_MODER_MODER12_1},
     [13] = {GPIO_MODER_MODER13_0, GPIO_MODER_MODER13_1},
     [14] = {GPIO_MODER_MODER14_0, GPIO_MODER_MODER14_1},
@@ -108,6 +111,31 @@ void gpio_mode_set(gpio_pin_names_e pin_name, gpio_mode_e desired_mode)
             break;
     }
     gpio_board_pins[pin_name].mode = desired_mode;
+}
+
+void gpio_alternate_function_set(gpio_pin_names_e pin_name, gpio_alternate_function_e af)
+{
+    gpio_pin_t pin = gpio_board_pins[pin_name];
+
+    /* Pins 0:7 use GPIOx_AFRL register.
+     * Pins 8:15 use GPIOx_AFRH register.
+     * AFR[0] represents AFRL.
+     * AFR[1] represents AFRH.
+     * 
+     * The left shift of (4 * pin number) is because each pin is represented by a
+     *  4 bit-field that can range from AF0 to AF15, so 16 total values, 2^4.
+     *  This means pin 0 is from 3:0, pin 1 is 4:7, etc so the shift has to be
+     *  4 * pin number.
+     * For AFRH register, we have to mod by 32 otherwise 4 * pin 8 would shift 32 to the left,
+     *  which is out of bounds and pin 8 is the "0th" pin of that register.
+     */
+
+    /* pin number is an unsigned int, so unnecessary to test pin.pin_number >= 0 */
+    if (pin.pin_number <= 7) {
+        pin.port->AFR[0] |= (af << (4 * pin.pin_number));
+    } else {
+        pin.port->AFR[1] |= (af << ((4 * pin.pin_number) % 32 ));
+    }
 }
 
 /* Atomic write to the data register for GPIO Output pins.
