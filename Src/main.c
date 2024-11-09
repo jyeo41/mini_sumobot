@@ -12,13 +12,8 @@ int main(void)
 	uart2_initialize();
 
 	while (1) {
-		uart2_send_char('H');
-		uart2_send_char('E');
-		uart2_send_char('L');
-		uart2_send_char('L');
-		uart2_send_char('O');
-		uart2_send_char('\n');
-		systick_delay_ms(1000);
+		uart_send_string("HELLO WORLD THIS IS STRESS TESTING THE RING BUFFER\n");
+		systick_delay_ms(250);
 		led_toggle(LED_GREEN);
 	}
 }
