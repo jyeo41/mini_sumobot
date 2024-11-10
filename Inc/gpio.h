@@ -10,6 +10,7 @@ typedef enum {
 	LED_ORANGE,
 	LED_RED,
 	LED_BLUE,
+	UART2_BOARD_TX,
 }gpio_pin_names_e;
 
 typedef enum {
@@ -18,6 +19,25 @@ typedef enum {
 	GPIO_MODE_ALTERNATE,
 	GPIO_MODE_ANALOG,
 }gpio_mode_e;
+
+typedef enum {
+	GPIO_AF0,
+	GPIO_AF1,
+	GPIO_AF2,
+	GPIO_AF3,
+	GPIO_AF4,
+	GPIO_AF5,
+	GPIO_AF6,
+	GPIO_AF7,
+	GPIO_AF8,
+	GPIO_AF9,
+	GPIO_AF10,
+	GPIO_AF11,
+	GPIO_AF12,
+	GPIO_AF13,
+	GPIO_AF14,
+	GPIO_AF15,
+}gpio_alternate_function_e;
 
 /* Struct that holds all the attributes of a single pin. This struct is the basis for abstracting away
  * direct register reads and writes in the custom GPIO HAL.
@@ -46,6 +66,7 @@ bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
 			 const uint8_t expected_pin_number,
 			 const uint8_t expected_mode);
 void gpio_mode_set(gpio_pin_names_e pin, gpio_mode_e mode);
+void gpio_alternate_function_set(gpio_pin_names_e pin_name, gpio_alternate_function_e af);
 void gpio_data_output_toggle(gpio_pin_names_e pin_name);
 void gpio_data_output_set(gpio_pin_names_e pin_name);
 void gpio_data_output_clear(gpio_pin_names_e pin_name);
