@@ -10,6 +10,9 @@ Debug/
 # ignore cppcheck report file
 cppcheck.report
 
+# ignore .clangd configuration file to suppress certain warnings
+.clangd
+
 # ignore compile_commands.json which is a clangd file, not used for building
 compile_commands.json
 

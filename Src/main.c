@@ -3,6 +3,8 @@
 #include "gpio.h"
 #include "systick.h"
 #include "uart.h"
+/* Have to include full path to the file otherwise cppcheck throws an error */
+#include "../external/printf/printf.h"
 
 int main(void)
 {
@@ -12,7 +14,8 @@ int main(void)
 	uart2_initialize();
 
 	while (1) {
-		uart_send_string("HELLO WORLD THIS IS STRESS TESTING THE RING BUFFER\n");
+		/* Testing MPaland's printf() implementation */
+		printf("Testing two numbers %d and a longer string %d\n", 2020, 2024);
 		systick_delay_ms(250);
 		led_toggle(LED_GREEN);
 	}

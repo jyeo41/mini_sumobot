@@ -8,7 +8,7 @@
 #define DESIRED_BAUDRATE    115200
 #define SYSTEM_CLOCK        16000000
 #define APB1_CLOCK          SYSTEM_CLOCK
-#define RING_BUFFER_LENGTH  64
+#define RING_BUFFER_LENGTH  128
 
 /* Variables being used inside ISRs should be declared as volatile */
 static volatile uint8_t tx_buffer[RING_BUFFER_LENGTH];
@@ -37,7 +37,7 @@ void uart2_initialize(void)
     /* Enable the clock gate for UART */
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
     /* Delay to let the clock settle to avoid immediately sending garbage characters. */
-    systick_delay_ms(50);
+    systick_delay_ms(100);
 
     /* Program the M bit in USART_CR1 to define the word length.
      * Clear it to set 1 start bit, 8 data bits, n Stop bit
@@ -80,23 +80,19 @@ void uart2_initialize(void)
 //
 //}
 
-void uart_send_string(const char* string)
+/* MPaland's printf implementation specifically requires the implementation of _putchar(char c).
+ * This function will then be called by printf() to send the characters over UART transmission
+ */
+// cppcheck-suppress unusedFunction
+void _putchar(char c)
 {
     ASSERT(initialized);
-    while(*string) {
-        uart2_interrupt_send_char(*string++);
-    }
-}
-
-void uart2_interrupt_send_char(uint8_t c)
-{
     /* Disable TX Interrupt while writing to the tx buffer.
      * Don't want an interrupt triggering while putting in data it would be a race condition. */
     uart2_interrupt_tx_disable();
 
-    ASSERT(initialized);
     if (c == '\n') {
-        uart2_interrupt_send_char('\r');
+        _putchar('\r');
     }
 
     /* Put the char I want to send into the tx ring buffer, increment array pointer after */
