@@ -59,6 +59,41 @@ void uart2_initialize(void)
     initialized = true;
 }
 
+void uart2_initialize_assert(void)
+{
+    /* Set the clock gate to enable Port A for UART2, PA2 */
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+
+    /* Set the UART pin to alternate function mode, and also AF7 for UART.
+     * Refer to datasheet, Chapter 3 Pinouts and Pin Description, Table 9 for AF mappings.
+     * Refer to Reference Manual, Chapter 8 GPIO, 8.3.2 I/O pin multiplexer and mapping for specific AF number */
+    GPIOA->MODER &= ~GPIO_MODER_MODER2_0;
+    GPIOA->MODER |= GPIO_MODER_MODER2_1;
+
+    /* Set PA2 to AF7 in AFRL register for UART functionality */
+    GPIOA->AFR[0] |= (7 << 8);
+
+    /* Enable the clock gate for UART */
+    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+    /* Delay to let the clock settle to avoid immediately sending garbage characters. */
+
+    /* Program the M bit in USART_CR1 to define the word length.
+     * Clear it to set 1 start bit, 8 data bits, n Stop bit
+     */
+    USART2->CR1 &= ~(USART_CR1_M);
+
+    /* Select the desired baud rate using USART_BRR register */
+    uart2_set_baudrate(APB1_CLOCK, DESIRED_BAUDRATE);
+
+    /* Set the Transmit Enable bit TE in USART_CR1 */
+    USART2->CR1 = USART_CR1_TE;
+
+    /* Enable the USART Module by writing to UE bit in USART_CR1 */
+    USART2->CR1 |= USART_CR1_UE;
+
+    /* Enable the USART2 which is IRQ 38 */
+    NVIC_EnableIRQ(38);
+}
 ///* Write the data to send in the USART_DR register (this clears the TXE bit) and repeat this
 // * for each data to be transmitted in case of single buffer.
 // *
@@ -86,7 +121,6 @@ void uart2_initialize(void)
 // cppcheck-suppress unusedFunction
 void _putchar(char c)
 {
-    ASSERT(initialized);
     /* Disable TX Interrupt while writing to the tx buffer.
      * Don't want an interrupt triggering while putting in data it would be a race condition. */
     uart2_interrupt_tx_disable();

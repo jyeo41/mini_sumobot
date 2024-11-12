@@ -3,8 +3,8 @@
 #include "gpio.h"
 #include "systick.h"
 #include "uart.h"
-/* Have to include full path to the file otherwise cppcheck throws an error */
-#include "../external/printf/printf.h"
+#include "assert_handler.h"
+#include "trace.h"
 
 int main(void)
 {
@@ -15,7 +15,8 @@ int main(void)
 
 	while (1) {
 		/* Testing MPaland's printf() implementation */
-		printf("Testing two numbers %d and a longer string %d\n", 2020, 2024);
+		TRACE("This is main.c");
+		ASSERT(0);
 		systick_delay_ms(250);
 		led_toggle(LED_GREEN);
 	}

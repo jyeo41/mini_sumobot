@@ -1,6 +1,7 @@
 #include <stm32f4xx.h>
 #include "assert_handler.h"
 #include "systick.h"
+#include "trace.h"
 
 /* The assertion should print where the assertion got triggered by showing the file and line number.
  * This functionality of tracing the code is just another tool to aid in debugging the software
@@ -15,8 +16,10 @@
  *
  * By manually enabling the clock gate, setting the mode, and toggling the blue and red LEDs inside of the assert_handler
  * bare metal, this decouples the assert_handler to work on its own if the led_driver file were to break. */
-void assert_handler(void)
+void assert_handler(const char* file, int line)
 {
+    trace_initialize();
+    TRACE("Assertion Failed %s:%d", file, line);
     /* Toggle a software breakpoint to track in the debugger where it got triggered
      * using the intrinsic __BKPT() function from CMSIS. This breakpoint raises a SIGTRAP to GDB and completely
      * halts the program when its hit.
