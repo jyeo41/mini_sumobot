@@ -11,6 +11,9 @@ PROJECT_ASM = $(PROJECT_DIR)/Startup
 CMSIS_CORE_INC = $(PROJECT_DIR)/external/STM32CubeF4/Drivers/CMSIS/Core/Include
 CMSIS_DEVICE_INC = $(PROJECT_DIR)/external/cmsis_device_f4/Include
 
+# MPaland printf implementation directory, needed for build target
+PRINTF_DIR = $(PROJECT_DIR)/external/printf
+
 # ARM GNU Toolchain GCC binary path
 ARM_NONE_EABI_BIN = /opt/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
 
@@ -28,7 +31,7 @@ SPECS = --specs=nano.specs
 
 # C Compiling
 MCU = -DSTM32F407xx # needed when compiling .c to .o files to specify the header to use our target MCU
-C_INCLUDES = $(PROJECT_INC) $(CMSIS_CORE_INC) $(CMSIS_DEVICE_INC)
+C_INCLUDES = $(PROJECT_INC) $(CMSIS_CORE_INC) $(CMSIS_DEVICE_INC) $(PRINTF_DIR)
 W_FLAGS = -Wall -Werror -Wextra
 OPT_FLAGS = -O0
 
@@ -49,10 +52,16 @@ LD_SCRIPT = STM32F407VGTX_FLASH.ld
 LD_FLAGS = $(CPU) $(FPU) $(SPECS) -T$(LD_SCRIPT)
 
 # Find all the .c files and generate .o files
-C_SOURCES = $(foreach dir, $(PROJECT_SRC), $(wildcard $(dir)/*.c)) # create a list of all source files prepended with their directory tree
-OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(C_SOURCES:.c=.o))) # create a list of all the target object files for build/*.o
-OBJECTS += $(addprefix $(BUILD_DIR)/, $(notdir $(ASM_SOURCES:.s=.o))) # do the same thing for the startup .s file
+# create a list of all source files prepended with their directory tree
+C_SOURCES = $(foreach dir, $(PROJECT_SRC) $(PRINTF_DIR), $(wildcard $(dir)/*.c)) 
+
+# create a list of all the target object files for build/*.o
+OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(C_SOURCES:.c=.o)))
+
+# do the same thing for the startup .s file
+OBJECTS += $(addprefix $(BUILD_DIR)/, $(notdir $(ASM_SOURCES:.s=.o))) 
 DEP_SOURCES = $(patsubst %.o, %.d, $(OBJECTS))
+
 # Debugging lines to check the built paths from above commands
 #$(info C_SOURCES: $(C_SOURCES))
 #$(info OBJECTS: $(OBJECTS))
@@ -61,6 +70,12 @@ $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)
 	$(CC) $(LD_FLAGS) $(OBJECTS) -o $@
 
 $(BUILD_DIR)/%.o: $(PROJECT_SRC)/%.c | $(BUILD_DIR)
+	$(CC) $(C_FLAGS) -c -o $@ $<
+
+# Build target to add the printf external directory as an additional build target.
+# Not the most elegant solution, but it works. The build target will also check this directory
+#	as well as the PROJECT_SRC directory when looking for source files.
+$(BUILD_DIR)/%.o: $(PRINTF_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(C_FLAGS) -c -o $@ $<
 
 $(BUILD_DIR)/%.o: $(PROJECT_ASM)/%.s | $(BUILD_DIR)
@@ -86,19 +101,6 @@ all: $(BUILD_DIR)/$(TARGET).elf
 # --go to actually start the program after flashing
 flash: $(BUILD_DIR)/$(TARGET).elf
 	STM32_Programmer_CLI --connect port=SWD freq=4000 mode=UR reset=HWrst --erase 0 --download $^ --verify --go
-
-#debug:
-#	@echo "Starting st-util..."
-#	st-util & \ # run st-util GDB server in the background
-#	ST_UTIL_PID=$$!; \ #save the PID of the background process
-#	echo "Waiting for st-util to listen on port 4242..."; \
-#	while ! lsof -i :4242; do \ # while loop syntax to check if GDB server is ready
-#		sleep 1; \ # keep sleeping until it is ready
-#	done; \
-#	echo "st-util is now listening on port 4242."; \
-#	echo "Starting GDB..."; \
-#	$(ARM_NONE_EABI_BIN)/arm-none-eabi-gdb $(BUILD_DIR)/$(TARGET).elf --eval-command="target extended-remote :4242"; \ # eval command to connect to our target immediately after
-#	kill $$ST_UTIL_PID # kill the GDB server after quitting the GDB session
 
 # Ignore the syscalls and sysmem files because they're just used to fill stub functions called by new/nanolibc.
 # --inline-suppr is useful to suppress certain functions I won't need

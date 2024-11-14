@@ -3,8 +3,10 @@
 #include <stdint.h>
 
 void uart2_initialize(void);
+void uart2_initialize_assert(void);
 //void uart2_send_char(uint8_t c);
-void uart_send_string(const char* string);
-void uart2_interrupt_send_char(uint8_t c);
+
+/* Explicit void _putchar(char c) function name required by mpaland's printf external implementation */
+void _putchar(char c);
 
 #endif /* UART_H_ */
