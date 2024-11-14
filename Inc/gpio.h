@@ -11,6 +11,7 @@ typedef enum {
 	LED_RED,
 	LED_BLUE,
 	UART2_BOARD_TX,
+	IR_RECEIVER,
 }gpio_pin_names_e;
 
 typedef enum {
@@ -39,6 +40,11 @@ typedef enum {
 	GPIO_AF15,
 }gpio_alternate_function_e;
 
+typedef enum {
+	GPIO_INTERRUPT_TRIGGER_FALLING,
+	GPIO_INTERRUPT_TRIGGER_RISING,
+}gpio_interrupt_edge_trigger_e;
+
 /* Struct that holds all the attributes of a single pin. This struct is the basis for abstracting away
  * direct register reads and writes in the custom GPIO HAL.
  * Pin name is needed because it'll allow accessing the named pin from the gpio_board_pins[] array 
@@ -65,8 +71,12 @@ bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
 			 const GPIO_TypeDef* const expected_port,
 			 const uint8_t expected_pin_number,
 			 const uint8_t expected_mode);
-void gpio_mode_set(gpio_pin_names_e pin, gpio_mode_e mode);
+void gpio_mode_set(gpio_pin_names_e pin_name, gpio_mode_e mode);
 void gpio_alternate_function_set(gpio_pin_names_e pin_name, gpio_alternate_function_e af);
+void gpio_interrupt_set(gpio_pin_names_e pin_name,
+			gpio_interrupt_edge_trigger_e edge_trigger, 
+			IRQn_Type IRQn,
+			uint32_t priority);
 void gpio_data_output_toggle(gpio_pin_names_e pin_name);
 void gpio_data_output_set(gpio_pin_names_e pin_name);
 void gpio_data_output_clear(gpio_pin_names_e pin_name);

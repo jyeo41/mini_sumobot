@@ -14,10 +14,12 @@
  * The application can change some of the attributes at runtime. The pin name, port, and pin number should be immutable.
  */
 static gpio_pin_t gpio_board_pins[] = {
-    [LED_GREEN] =   {LED_GREEN, GPIOD, 12, GPIO_MODE_OUTPUT},
-    [LED_RED] =     {LED_RED, GPIOD, 14, GPIO_MODE_OUTPUT},
-    [LED_BLUE] =    {LED_BLUE, GPIOD, 15, GPIO_MODE_OUTPUT},
-    [UART2_BOARD_TX] =    {UART2_BOARD_TX, GPIOA, 2, GPIO_MODE_ALTERNATE},
+    [LED_GREEN] =       {LED_GREEN, GPIOD, 12, GPIO_MODE_OUTPUT},
+    [LED_ORANGE] =      {LED_ORANGE, GPIOD, 13, GPIO_MODE_OUTPUT},
+    [LED_RED] =         {LED_RED, GPIOD, 14, GPIO_MODE_OUTPUT},
+    [LED_BLUE] =        {LED_BLUE, GPIOD, 15, GPIO_MODE_OUTPUT},
+    [UART2_BOARD_TX] =  {UART2_BOARD_TX, GPIOA, 2, GPIO_MODE_ALTERNATE},
+    [IR_RECEIVER] =     {IR_RECEIVER, GPIOB, 0, GPIO_MODE_INPUT},
 };
 
 /* Mapping pin numbers to their corresponding MODE register as a 2D array.
@@ -136,6 +138,93 @@ void gpio_alternate_function_set(gpio_pin_names_e pin_name, gpio_alternate_funct
     } else {
         pin.port->AFR[1] |= (af << ((4 * pin.pin_number) % 32 ));
     }
+}
+
+void gpio_interrupt_set(gpio_pin_names_e pin_name,
+			gpio_interrupt_edge_trigger_e edge_trigger, 
+			IRQn_Type IRQn,
+			uint32_t priority)
+{
+    /* GPIO Pin Interrupt Configuration
+     * 1. Pin must be in input mode.
+     * 2. Configure the edge trigger (EXTI->FTSR/RTSR/RFSR).
+     * 3. Configure GPIO Port Selection: Memory and Bus Architecture Table 1 (SYSCFG_EXTICR)
+     * 3. Enable interrupt delivery from peripheral side (EXTI->IMR).
+     * 4. Identify the IRQ Number for said interrupt
+     * 5. Configure the IRQ Priority for the IRQ Number
+     * 6. Enable interrupt reception from processor side for the IRQ number
+     * 7. Implement IRQ handler */
+
+    gpio_pin_t pin = gpio_board_pins[pin_name];
+    
+    /* Variable to extract out the correct EXTICRn register.
+     * Reference Manual, Chapter 9 System Configuration Controller, 9.2.3 */
+    uint8_t exti_cr_number = 0;
+    if (pin.pin_number <= 3) {
+        exti_cr_number = 1;
+    } else if (pin.pin_number <= 7) {
+        exti_cr_number = 2;
+    } else if (pin.pin_number <= 11) {
+        exti_cr_number = 3;
+    } else {
+        exti_cr_number = 4;
+    }
+
+    /* Variable to map the desired port selection to an unsigned integer from 0 - 8 */
+    uint8_t port_selection = 0;
+    if (pin.port == GPIOA) {
+        port_selection = 0;
+    } else if (pin.port == GPIOB) {
+        port_selection = 1;
+    } else if (pin.port == GPIOC) {
+        port_selection = 2;
+    } else if (pin.port == GPIOD) {
+        port_selection = 3;
+    } else if (pin.port == GPIOE) {
+        port_selection = 4;
+    } else if (pin.port == GPIOF) {
+        port_selection = 5;
+    } else if (pin.port == GPIOG) {
+        port_selection = 6;
+    } else if (pin.port == GPIOH) {
+        port_selection = 7;
+    } else if (pin.port == GPIOI) {
+        port_selection = 8;
+    }
+
+    /* First enable the SYSCFG clock in the RCC APG2ENR register.
+     *
+     * The exti_cr_number - 1 is an offset because the array starts from index 0.
+     * 4 * pin.pin_number is because each EXTIn is 4 bits wide.
+     * % 16 is because each SYSCFG_EXTICRn register only uses lower 16 bits.
+     *
+     * Example: Configuring GPIO PB7 
+     *  Pin 7 is EXTICR2
+     *  Need to shift 0b0001 to the left 12
+     *
+     *  4 * pin number 7 = 28 % 16 = 12
+     */
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+    SYSCFG->EXTICR[exti_cr_number - 1] |= (port_selection << ((4 * pin.pin_number) % 16));
+
+    /* Set falling or rising edge trigger*/
+    switch(edge_trigger) {
+        case GPIO_INTERRUPT_TRIGGER_FALLING:
+            EXTI->FTSR |= (1 << pin.pin_number);
+            EXTI->RTSR &= ~(1 << pin.pin_number);
+            break;
+        case GPIO_INTERRUPT_TRIGGER_RISING:
+            EXTI->RTSR |= (1 << pin.pin_number);
+            EXTI->FTSR &= ~(1 << pin.pin_number);
+            break;
+    }
+
+    /* Enable interrupt delivery from peripheral side */
+    EXTI->IMR |= (1 << pin.pin_number);
+
+    /* Enable interrupt receiving from processor side */
+    NVIC_EnableIRQ(IRQn);
+    NVIC_SetPriority(IRQn, priority);
 }
 
 /* Atomic write to the data register for GPIO Output pins.

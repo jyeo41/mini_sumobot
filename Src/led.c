@@ -18,11 +18,13 @@ void led_initialize(void)
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN;
     
     gpio_mode_set(LED_GREEN, GPIO_MODE_OUTPUT);
+    gpio_mode_set(LED_ORANGE, GPIO_MODE_OUTPUT);
     gpio_mode_set(LED_RED, GPIO_MODE_OUTPUT);
     gpio_mode_set(LED_BLUE, GPIO_MODE_OUTPUT);
 
     /* Sanity check to make sure the pin configurations are set the way they should be */
     ASSERT(gpio_config_compare(LED_GREEN, LED_GREEN, GPIOD, 12, GPIO_MODE_OUTPUT));
+    ASSERT(gpio_config_compare(LED_ORANGE, LED_ORANGE, GPIOD, 13, GPIO_MODE_OUTPUT));
     ASSERT(gpio_config_compare(LED_RED, LED_RED, GPIOD, 14, GPIO_MODE_OUTPUT));
     ASSERT(gpio_config_compare(LED_BLUE, LED_BLUE, GPIOD, 15, GPIO_MODE_OUTPUT));
 
