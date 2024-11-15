@@ -9,7 +9,10 @@
 
 int main(void)
 {
+	#if 0
 	gpio_default_initialize();
+	#endif
+
 	led_initialize();
 	systick_initialize();
 	uart2_initialize();

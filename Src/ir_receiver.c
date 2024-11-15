@@ -13,16 +13,12 @@ void ir_receiver_initialize(void)
     /* Setting the IR Receiver for pin PB0, GPIO Falling Edge Interrupt trigger */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
 
-    gpio_mode_set(IR_RECEIVER, GPIO_MODE_INPUT);
+    gpio_configure_pin(IR_RECEIVER, GPIO_MODE_INPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
     gpio_interrupt_set(IR_RECEIVER, GPIO_INTERRUPT_TRIGGER_FALLING, 6, 2);
 
     initialized = true;
 }
 
-void gpio_interrupt_set(gpio_pin_names_e pin,
-			gpio_interrupt_edge_trigger_e edge_trigger, 
-			IRQn_Type IRQn,
-			uint32_t priority);
 ir_receiver_cmd_e ir_receiver_get_cmd(void);
 
 // cppcheck-suppress unusedFunction
