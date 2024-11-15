@@ -76,23 +76,24 @@ static const uint32_t gpio_bsrr_register_bits[][2] = {
     [15] = {GPIO_BSRR_BS15, GPIO_BSRR_BR15},
 };
 
+/* Using _Pos defines because we use these defines to shift a 0, 1, or 2 to their appropriate position */
 static const uint32_t gpio_pupdr_register_masks[] = {
-    [0] = GPIO_PUPDR_PUPD0,
-    [1] = GPIO_PUPDR_PUPD1,
-    [2] = GPIO_PUPDR_PUPD2,
-    [3] = GPIO_PUPDR_PUPD3,
-    [4] = GPIO_PUPDR_PUPD4,
-    [5] = GPIO_PUPDR_PUPD5,
-    [6] = GPIO_PUPDR_PUPD6,
-    [7] = GPIO_PUPDR_PUPD7,
-    [8] = GPIO_PUPDR_PUPD8,
-    [9] = GPIO_PUPDR_PUPD9,
-    [10] = GPIO_PUPDR_PUPD10,
-    [11] = GPIO_PUPDR_PUPD11,
-    [12] = GPIO_PUPDR_PUPD12,
-    [13] = GPIO_PUPDR_PUPD13,
-    [14] = GPIO_PUPDR_PUPD14,
-    [15] = GPIO_PUPDR_PUPD15,
+    [0] = GPIO_PUPDR_PUPD0_Pos,
+    [1] = GPIO_PUPDR_PUPD1_Pos,
+    [2] = GPIO_PUPDR_PUPD2_Pos,
+    [3] = GPIO_PUPDR_PUPD3_Pos,
+    [4] = GPIO_PUPDR_PUPD4_Pos,
+    [5] = GPIO_PUPDR_PUPD5_Pos,
+    [6] = GPIO_PUPDR_PUPD6_Pos,
+    [7] = GPIO_PUPDR_PUPD7_Pos,
+    [8] = GPIO_PUPDR_PUPD8_Pos,
+    [9] = GPIO_PUPDR_PUPD9_Pos,
+    [10] = GPIO_PUPDR_PUPD10_Pos,
+    [11] = GPIO_PUPDR_PUPD11_Pos,
+    [12] = GPIO_PUPDR_PUPD12_Pos,
+    [13] = GPIO_PUPDR_PUPD13_Pos,
+    [14] = GPIO_PUPDR_PUPD14_Pos,
+    [15] = GPIO_PUPDR_PUPD15_Pos,
 };
 
 static const uint16_t gpio_odr_register_bit[] = {
