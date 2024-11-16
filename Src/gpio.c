@@ -19,7 +19,7 @@ static gpio_pin_t gpio_board_pins[] = {
     [LED_RED] =         {GPIOD, 14, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
     [LED_BLUE] =        {GPIOD, 15, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
     [UART2_BOARD_TX] =  {GPIOA, 2, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED},
-    [IR_RECEIVER] =     {GPIOB, 0, GPIO_MODE_INPUT, GPIO_RESISTOR_DISABLED},
+    [IR_RECEIVER] =     {GPIOA, 15, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED},
 };
 
 /* Mapping pin numbers to their corresponding MODE register as a 2D array.
@@ -232,6 +232,8 @@ void gpio_resistor_set(gpio_pin_names_e pin_name, gpio_resistor_e resistor)
     }
     gpio_board_pins[pin_name].resistor = resistor;
 }
+
+#if 0
 void gpio_interrupt_set(gpio_pin_names_e pin_name,
 			gpio_interrupt_edge_trigger_e edge_trigger, 
 			IRQn_Type IRQn,
@@ -318,6 +320,7 @@ void gpio_interrupt_set(gpio_pin_names_e pin_name,
     NVIC_EnableIRQ(IRQn);
     NVIC_SetPriority(IRQn, priority);
 }
+#endif
 
 /* Atomic write to the data register for GPIO Output pins.
  * Check if the bit is set in the ODR register, and if it is,

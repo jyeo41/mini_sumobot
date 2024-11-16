@@ -52,7 +52,7 @@ void uart2_initialize(void)
     USART2->CR1 |= USART_CR1_UE;
 
     /* Enable the USART2 which is IRQ 38 */
-    NVIC_EnableIRQ(38);
+    NVIC_EnableIRQ(USART2_IRQn);
 
     initialized = true;
 }
