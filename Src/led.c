@@ -17,14 +17,22 @@ void led_initialize(void)
     /* Need to enable the clock connected to GPIO Port D */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN;
     
+    gpio_configure_pin(LED_GREEN, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(LED_ORANGE, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(LED_RED, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(LED_BLUE, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
+    #if 0
     gpio_mode_set(LED_GREEN, GPIO_MODE_OUTPUT);
+    gpio_mode_set(LED_ORANGE, GPIO_MODE_OUTPUT);
     gpio_mode_set(LED_RED, GPIO_MODE_OUTPUT);
     gpio_mode_set(LED_BLUE, GPIO_MODE_OUTPUT);
+    #endif
 
     /* Sanity check to make sure the pin configurations are set the way they should be */
-    ASSERT(gpio_config_compare(LED_GREEN, LED_GREEN, GPIOD, 12, GPIO_MODE_OUTPUT));
-    ASSERT(gpio_config_compare(LED_RED, LED_RED, GPIOD, 14, GPIO_MODE_OUTPUT));
-    ASSERT(gpio_config_compare(LED_BLUE, LED_BLUE, GPIOD, 15, GPIO_MODE_OUTPUT));
+    ASSERT(gpio_config_compare(LED_GREEN, GPIOD, 12, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED));
+    ASSERT(gpio_config_compare(LED_ORANGE, GPIOD, 13, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED));
+    ASSERT(gpio_config_compare(LED_RED, GPIOD, 14, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED));
+    ASSERT(gpio_config_compare(LED_BLUE, GPIOD, 15, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED));
 
     /* Once LEDs are initialized, update the boolean value to true */
     initialized = true;

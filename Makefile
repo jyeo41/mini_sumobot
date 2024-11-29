@@ -114,7 +114,7 @@ cppcheck:
 	@$(CPPCHECK) --quiet --enable=all --inline-suppr \
 	--error-exitcode=1 --suppress=missingIncludeSystem \
 	--checkers-report=cppcheck.report \
-	--suppress=checkersReport \
+	--suppress=checkersReport --check-level=exhaustive \
 	$(PROJECT_SRC) -I$(PROJECT_INC) $(addprefix -i, $(CPPCHECK_IGNORE))
 
 # -% is a wildcard that represents any string. When you type the command 

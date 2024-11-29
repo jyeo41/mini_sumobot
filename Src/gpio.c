@@ -11,13 +11,15 @@
  * These are the default pin configurations the board starts with, and using gpio functions such as
  *  - gpio_mode_set()
  *
- * The application can change some of the attributes at runtime. The pin name, port, and pin number should be immutable.
+ * The application can change some of the attributes at runtime however, the pin name, port, and pin number should be immutable.
  */
 static gpio_pin_t gpio_board_pins[] = {
-    [LED_GREEN] =   {LED_GREEN, GPIOD, 12, GPIO_MODE_OUTPUT},
-    [LED_RED] =     {LED_RED, GPIOD, 14, GPIO_MODE_OUTPUT},
-    [LED_BLUE] =    {LED_BLUE, GPIOD, 15, GPIO_MODE_OUTPUT},
-    [UART2_BOARD_TX] =    {UART2_BOARD_TX, GPIOA, 2, GPIO_MODE_ALTERNATE},
+    [LED_GREEN] =       {GPIOD, 12, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
+    [LED_ORANGE] =      {GPIOD, 13, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
+    [LED_RED] =         {GPIOD, 14, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
+    [LED_BLUE] =        {GPIOD, 15, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
+    [UART2_BOARD_TX] =  {GPIOA, 2, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED},
+    [IR_RECEIVER] =     {GPIOA, 15, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED},
 };
 
 /* Mapping pin numbers to their corresponding MODE register as a 2D array.
@@ -34,6 +36,15 @@ static const uint32_t gpio_mode_register_bits[][2] = {
     [0] = {GPIO_MODER_MODER0_0, GPIO_MODER_MODER0_1},
     [1] = {GPIO_MODER_MODER1_0, GPIO_MODER_MODER1_1},
     [2] = {GPIO_MODER_MODER2_0, GPIO_MODER_MODER2_1},
+    [3] = {GPIO_MODER_MODER3_0, GPIO_MODER_MODER3_1},
+    [4] = {GPIO_MODER_MODER4_0, GPIO_MODER_MODER4_1},
+    [5] = {GPIO_MODER_MODER5_0, GPIO_MODER_MODER5_1},
+    [6] = {GPIO_MODER_MODER6_0, GPIO_MODER_MODER6_1},
+    [7] = {GPIO_MODER_MODER7_0, GPIO_MODER_MODER7_1},
+    [8] = {GPIO_MODER_MODER8_0, GPIO_MODER_MODER8_1},
+    [9] = {GPIO_MODER_MODER9_0, GPIO_MODER_MODER9_1},
+    [10] = {GPIO_MODER_MODER10_0, GPIO_MODER_MODER10_1},
+    [11] = {GPIO_MODER_MODER11_0, GPIO_MODER_MODER11_1},
     [12] = {GPIO_MODER_MODER12_0, GPIO_MODER_MODER12_1},
     [13] = {GPIO_MODER_MODER13_0, GPIO_MODER_MODER13_1},
     [14] = {GPIO_MODER_MODER14_0, GPIO_MODER_MODER14_1},
@@ -47,41 +58,107 @@ static const uint32_t gpio_mode_register_bits[][2] = {
  * The CMSIS headers already have defines to account for these offsets, so mapping them into arrays makes it easier to work with.
  */
 static const uint32_t gpio_bsrr_register_bits[][2] = {
+    [0] = {GPIO_BSRR_BS0, GPIO_BSRR_BR0},
+    [1] = {GPIO_BSRR_BS1, GPIO_BSRR_BR1},
+    [2] = {GPIO_BSRR_BS2, GPIO_BSRR_BR2},
+    [3] = {GPIO_BSRR_BS3, GPIO_BSRR_BR3},
+    [4] = {GPIO_BSRR_BS4, GPIO_BSRR_BR4},
+    [5] = {GPIO_BSRR_BS5, GPIO_BSRR_BR5},
+    [6] = {GPIO_BSRR_BS6, GPIO_BSRR_BR6},
+    [7] = {GPIO_BSRR_BS7, GPIO_BSRR_BR7},
+    [8] = {GPIO_BSRR_BS8, GPIO_BSRR_BR8},
+    [9] = {GPIO_BSRR_BS9, GPIO_BSRR_BR9},
+    [10] = {GPIO_BSRR_BS10, GPIO_BSRR_BR10},
+    [11] = {GPIO_BSRR_BS11, GPIO_BSRR_BR11},
     [12] = {GPIO_BSRR_BS12, GPIO_BSRR_BR12},
     [13] = {GPIO_BSRR_BS13, GPIO_BSRR_BR13},
     [14] = {GPIO_BSRR_BS14, GPIO_BSRR_BR14},
     [15] = {GPIO_BSRR_BS15, GPIO_BSRR_BR15},
 };
 
-static const uint32_t gpio_odr_register_bit[] = {
+/* Using _Pos defines because we use these defines to shift a 0, 1, or 2 to their appropriate position */
+static const uint32_t gpio_pupdr_register_masks[] = {
+    [0] = GPIO_PUPDR_PUPD0_Pos,
+    [1] = GPIO_PUPDR_PUPD1_Pos,
+    [2] = GPIO_PUPDR_PUPD2_Pos,
+    [3] = GPIO_PUPDR_PUPD3_Pos,
+    [4] = GPIO_PUPDR_PUPD4_Pos,
+    [5] = GPIO_PUPDR_PUPD5_Pos,
+    [6] = GPIO_PUPDR_PUPD6_Pos,
+    [7] = GPIO_PUPDR_PUPD7_Pos,
+    [8] = GPIO_PUPDR_PUPD8_Pos,
+    [9] = GPIO_PUPDR_PUPD9_Pos,
+    [10] = GPIO_PUPDR_PUPD10_Pos,
+    [11] = GPIO_PUPDR_PUPD11_Pos,
+    [12] = GPIO_PUPDR_PUPD12_Pos,
+    [13] = GPIO_PUPDR_PUPD13_Pos,
+    [14] = GPIO_PUPDR_PUPD14_Pos,
+    [15] = GPIO_PUPDR_PUPD15_Pos,
+};
+
+static const uint16_t gpio_odr_register_bit[] = {
+    [0] = GPIO_ODR_OD0,
+    [1] = GPIO_ODR_OD1,
+    [2] = GPIO_ODR_OD2,
+    [3] = GPIO_ODR_OD3,
+    [4] = GPIO_ODR_OD4,
+    [5] = GPIO_ODR_OD5,
+    [6] = GPIO_ODR_OD6,
+    [7] = GPIO_ODR_OD7,
+    [8] = GPIO_ODR_OD8,
+    [9] = GPIO_ODR_OD9,
+    [10] = GPIO_ODR_OD10,
+    [11] = GPIO_ODR_OD11,
     [12] = GPIO_ODR_OD12,
     [13] = GPIO_ODR_OD13,
     [14] = GPIO_ODR_OD14,
     [15] = GPIO_ODR_OD15,
 };
 
+#if 0
 void gpio_default_initialize(void)
 {
+    /* Set the clock gate to enable Port A for UART2, PA2 */
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+
+    /* Set the clock gate to enable Port B for IR Receiver, PB0 */
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
+
+    /* Set the clock gate to enable Port D for Board LEDs */
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN;
+
     volatile uint8_t i;
     for (i = 0; i < GPIO_BOARD_PINS_LENGTH; i++) {
-        gpio_mode_set(gpio_board_pins[i].pin_name, gpio_board_pins[i].mode);
+        gpio_mode_set(i, gpio_board_pins[i].mode);
     }
+}
+#endif
+
+/* Function to call other gpio setting helper functions. */
+void gpio_configure_pin(gpio_pin_names_e pin_name, gpio_mode_e mode,
+			gpio_alternate_function_e af, gpio_resistor_e resistor)
+{
+    gpio_mode_set(pin_name, mode);
+    if (mode == GPIO_MODE_ALTERNATE) {
+        gpio_alternate_function_set(pin_name, af);
+    }
+    gpio_resistor_set(pin_name, resistor);
 }
 
 /* Make all the incoming parameters constants because they should be read only.
  * This is to explicitly state these values are to be only used for comparison purposes. */
 bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
-			 const gpio_pin_names_e expected_pin_name,
 			 const GPIO_TypeDef* const expected_port,
 			 const uint8_t expected_pin_number,
-			 const uint8_t expected_mode)
+			 const gpio_mode_e expected_mode,
+			 const gpio_resistor_e expected_resistor)
 {
     const gpio_pin_t test_pin = gpio_board_pins[pin_to_check];
 
-    return (test_pin.pin_name == expected_pin_name) &&
-            (test_pin.port == expected_port) &&
+    return ((test_pin.port == expected_port) &&
             (test_pin.pin_number == expected_pin_number) &&
-            (test_pin.mode == expected_mode);
+            (test_pin.mode == expected_mode) &&
+            (test_pin.resistor == expected_resistor));
 }
 
 void gpio_mode_set(gpio_pin_names_e pin_name, gpio_mode_e desired_mode)
@@ -137,6 +214,113 @@ void gpio_alternate_function_set(gpio_pin_names_e pin_name, gpio_alternate_funct
         pin.port->AFR[1] |= (af << ((4 * pin.pin_number) % 32 ));
     }
 }
+
+void gpio_resistor_set(gpio_pin_names_e pin_name, gpio_resistor_e resistor)
+{
+    gpio_pin_t pin = gpio_board_pins[pin_name];
+
+    switch (resistor) {
+        case GPIO_RESISTOR_DISABLED:
+            pin.port->PUPDR |= (0 << gpio_pupdr_register_masks[pin.pin_number]);
+            break;
+        case GPIO_RESISTOR_PULLUP:
+            pin.port->PUPDR |= (1 << gpio_pupdr_register_masks[pin.pin_number]);
+            break;
+        case GPIO_RESISTOR_PULLDOWN:
+            pin.port->PUPDR |= (2 << gpio_pupdr_register_masks[pin.pin_number]);
+            break;
+    }
+    gpio_board_pins[pin_name].resistor = resistor;
+}
+
+#if 0
+void gpio_interrupt_set(gpio_pin_names_e pin_name,
+			gpio_interrupt_edge_trigger_e edge_trigger, 
+			IRQn_Type IRQn,
+			uint32_t priority)
+{
+    /* GPIO Pin Interrupt Configuration
+     * 1. Pin must be in input mode.
+     * 2. Configure the edge trigger (EXTI->FTSR/RTSR/RFSR).
+     * 3. Configure GPIO Port Selection: Memory and Bus Architecture Table 1 (SYSCFG_EXTICR)
+     * 3. Enable interrupt delivery from peripheral side (EXTI->IMR).
+     * 4. Identify the IRQ Number for said interrupt
+     * 5. Configure the IRQ Priority for the IRQ Number
+     * 6. Enable interrupt reception from processor side for the IRQ number
+     * 7. Implement IRQ handler */
+
+    gpio_pin_t pin = gpio_board_pins[pin_name];
+    
+    /* Variable to extract out the correct EXTICRn register.
+     * Reference Manual, Chapter 9 System Configuration Controller, 9.2.3 */
+    uint8_t exti_cr_number = 0;
+    if (pin.pin_number <= 3) {
+        exti_cr_number = 1;
+    } else if (pin.pin_number <= 7) {
+        exti_cr_number = 2;
+    } else if (pin.pin_number <= 11) {
+        exti_cr_number = 3;
+    } else {
+        exti_cr_number = 4;
+    }
+
+    /* Variable to map the desired port selection to an unsigned integer from 0 - 8 */
+    uint8_t port_selection = 0;
+    if (pin.port == GPIOA) {
+        port_selection = 0;
+    } else if (pin.port == GPIOB) {
+        port_selection = 1;
+    } else if (pin.port == GPIOC) {
+        port_selection = 2;
+    } else if (pin.port == GPIOD) {
+        port_selection = 3;
+    } else if (pin.port == GPIOE) {
+        port_selection = 4;
+    } else if (pin.port == GPIOF) {
+        port_selection = 5;
+    } else if (pin.port == GPIOG) {
+        port_selection = 6;
+    } else if (pin.port == GPIOH) {
+        port_selection = 7;
+    } else if (pin.port == GPIOI) {
+        port_selection = 8;
+    }
+
+    /* First enable the SYSCFG clock in the RCC APG2ENR register.
+     *
+     * The exti_cr_number - 1 is an offset because the array starts from index 0.
+     * 4 * pin.pin_number is because each EXTIn is 4 bits wide.
+     * % 16 is because each SYSCFG_EXTICRn register only uses lower 16 bits.
+     *
+     * Example: Configuring GPIO PB7 
+     *  Pin 7 is EXTICR2
+     *  Need to shift 0b0001 to the left 12
+     *
+     *  4 * pin number 7 = 28 % 16 = 12
+     */
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+    SYSCFG->EXTICR[exti_cr_number - 1] |= (port_selection << ((4 * pin.pin_number) % 16));
+
+    /* Set falling or rising edge trigger*/
+    switch(edge_trigger) {
+        case GPIO_INTERRUPT_TRIGGER_FALLING:
+            EXTI->FTSR |= (1 << pin.pin_number);
+            EXTI->RTSR &= ~(1 << pin.pin_number);
+            break;
+        case GPIO_INTERRUPT_TRIGGER_RISING:
+            EXTI->RTSR |= (1 << pin.pin_number);
+            EXTI->FTSR &= ~(1 << pin.pin_number);
+            break;
+    }
+
+    /* Enable interrupt delivery from peripheral side */
+    EXTI->IMR |= (1 << pin.pin_number);
+
+    /* Enable interrupt receiving from processor side */
+    NVIC_EnableIRQ(IRQn);
+    NVIC_SetPriority(IRQn, priority);
+}
+#endif
 
 /* Atomic write to the data register for GPIO Output pins.
  * Check if the bit is set in the ODR register, and if it is,

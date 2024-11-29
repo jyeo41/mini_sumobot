@@ -24,15 +24,13 @@ static void uart2_interrupt_tx_disable(void);
 void uart2_initialize(void)
 {
     ASSERT(!initialized);
-    /* Set the clock gate to enable Port B for UART1, PB6 */
+    /* Set the clock gate to enable Port A for UART2, PA2 */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 
     /* Set the UART pin to alternate function, and also AF7 for UART.
      * Refer to datasheet, Chapter 3 Pinouts and Pin Description, Table 9 for AF mappings.
      * Refer to Reference Manual, Chapter 8 GPIO, 8.3.2 I/O pin multiplexer and mapping for specific AF number */
-    gpio_mode_set(UART2_BOARD_TX, GPIO_MODE_ALTERNATE);
-    gpio_alternate_function_set(UART2_BOARD_TX, GPIO_AF7);
-
+    gpio_configure_pin(UART2_BOARD_TX, GPIO_MODE_ALTERNATE, GPIO_AF7, GPIO_RESISTOR_DISABLED);
 
     /* Enable the clock gate for UART */
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
@@ -54,11 +52,12 @@ void uart2_initialize(void)
     USART2->CR1 |= USART_CR1_UE;
 
     /* Enable the USART2 which is IRQ 38 */
-    NVIC_EnableIRQ(38);
+    NVIC_EnableIRQ(USART2_IRQn);
 
     initialized = true;
 }
 
+/* Bare metal decoupled uart initialization function to be used in the assert_handler */
 void uart2_initialize_assert(void)
 {
     /* Set the clock gate to enable Port A for UART2, PA2 */

@@ -11,6 +11,7 @@ typedef enum {
 	LED_RED,
 	LED_BLUE,
 	UART2_BOARD_TX,
+	IR_RECEIVER,
 }gpio_pin_names_e;
 
 typedef enum {
@@ -37,7 +38,22 @@ typedef enum {
 	GPIO_AF13,
 	GPIO_AF14,
 	GPIO_AF15,
+	GPIO_AF_NONE,
 }gpio_alternate_function_e;
+
+/* gpio_pin_t setting to enable or disable internal pullup/pulldown resistor.
+ * Used with gpio input pins.
+ */
+typedef enum {
+	GPIO_RESISTOR_DISABLED,
+	GPIO_RESISTOR_PULLUP,
+	GPIO_RESISTOR_PULLDOWN,
+}gpio_resistor_e;
+
+typedef enum {
+	GPIO_INTERRUPT_TRIGGER_FALLING,
+	GPIO_INTERRUPT_TRIGGER_RISING,
+}gpio_interrupt_edge_trigger_e;
 
 /* Struct that holds all the attributes of a single pin. This struct is the basis for abstracting away
  * direct register reads and writes in the custom GPIO HAL.
@@ -50,23 +66,33 @@ typedef enum {
  *	but the actual pointer to the port itself cannot be.
  *
  *	GPIO_TypeDef* const port = GPIOA // this is the initialization
- *	port = GPIOD			 // this is INVALID because the port shouldn't be changed once set to that pin
+ *	port = GPIOD			 // this is INVALID because the port shouldn't be changed once set to that pin.
+ *
  */
 typedef struct {
-	const gpio_pin_names_e pin_name;
 	GPIO_TypeDef* const port;
 	const uint8_t pin_number;
-	uint8_t mode;
+	gpio_mode_e mode;
+	gpio_resistor_e resistor;
 }gpio_pin_t;
 
 void gpio_default_initialize(void);
+void gpio_configure_pin(gpio_pin_names_e pin_name, gpio_mode_e mode,
+			gpio_alternate_function_e af, gpio_resistor_e resistor);
 bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
-			 const gpio_pin_names_e expected_pin_name,
 			 const GPIO_TypeDef* const expected_port,
 			 const uint8_t expected_pin_number,
-			 const uint8_t expected_mode);
-void gpio_mode_set(gpio_pin_names_e pin, gpio_mode_e mode);
+			 const gpio_mode_e expected_mode,
+			 const gpio_resistor_e expected_resistor);
+
+void gpio_mode_set(gpio_pin_names_e pin_name, gpio_mode_e mode);
 void gpio_alternate_function_set(gpio_pin_names_e pin_name, gpio_alternate_function_e af);
+void gpio_resistor_set(gpio_pin_names_e pin_name, gpio_resistor_e resistor);
+void gpio_interrupt_set(gpio_pin_names_e pin_name,
+			gpio_interrupt_edge_trigger_e edge_trigger, 
+			IRQn_Type IRQn,
+			uint32_t priority);
+
 void gpio_data_output_toggle(gpio_pin_names_e pin_name);
 void gpio_data_output_set(gpio_pin_names_e pin_name);
 void gpio_data_output_clear(gpio_pin_names_e pin_name);
