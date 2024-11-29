@@ -15,10 +15,8 @@ int main(void)
 	ir_receiver_initialize();
 
 	while (1) {
-		/* Testing MPaland's printf() implementation */
-		TRACE("This is main.c");
-		//ASSERT(0);
-		systick_delay_ms(250);
+		TRACE("Command: %s", ir_receiver_get_cmd());
 		led_toggle(LED_GREEN);
+		systick_delay_ms(150);
 	}
 }
