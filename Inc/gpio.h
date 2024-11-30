@@ -11,7 +11,12 @@ typedef enum {
 	LED_RED,
 	LED_BLUE,
 	UART2_BOARD_TX,
+	UART2_BOARD_RX,
 	IR_RECEIVER,
+	ADC3_CHANNEL4,
+	ADC3_CHANNEL5,
+	ADC3_CHANNEL6,
+	ADC3_CHANNEL7,
 }gpio_pin_names_e;
 
 typedef enum {

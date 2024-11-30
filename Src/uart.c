@@ -24,18 +24,21 @@ static void uart2_interrupt_tx_disable(void);
 void uart2_initialize(void)
 {
     ASSERT(!initialized);
-    /* Set the clock gate to enable Port A for UART2, PA2 */
+    /* Set the clock gate to enable Port A for UART2, PA2 and PA3 */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 
-    /* Set the UART pin to alternate function, and also AF7 for UART.
+    /* Set the UART pin to alternate function, and also AF7 for UART2.
+     * Won't be using receive pin, but still set it as a pair for Tx and Rx.
      * Refer to datasheet, Chapter 3 Pinouts and Pin Description, Table 9 for AF mappings.
      * Refer to Reference Manual, Chapter 8 GPIO, 8.3.2 I/O pin multiplexer and mapping for specific AF number */
     gpio_configure_pin(UART2_BOARD_TX, GPIO_MODE_ALTERNATE, GPIO_AF7, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(UART2_BOARD_RX, GPIO_MODE_ALTERNATE, GPIO_AF7, GPIO_RESISTOR_DISABLED);
 
     /* Enable the clock gate for UART */
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+
     /* Delay to let the clock settle to avoid immediately sending garbage characters. */
-    systick_delay_ms(100);
+    systick_delay_ms(20);
 
     /* Program the M bit in USART_CR1 to define the word length.
      * Clear it to set 1 start bit, 8 data bits, n Stop bit
