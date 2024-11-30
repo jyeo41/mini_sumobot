@@ -18,11 +18,11 @@ void adc_initialize(void)
      * Set sampling time for channels in SMPRx
      * Set regular channel sequence length in SQR1
      * Set GPIO pins to analog mode
-     *
-     * Use ADC3 channels 4, 5, 6, 7 which are mapped to pins PF6, 7, 8, 9
      */
+
+    /* Use ADC3 channels 10, 11, 12, 13 which are mapped to pins PFC 0, 1, 2, 3 */
     RCC->APB2ENR |= RCC_APB2ENR_ADC3EN;
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOFEN;
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
 
     /* Set prescaler for ADC clock to 2, by clearing both bits to 0.
      * The max for ADCCLK is 36 MHz. */
@@ -51,22 +51,43 @@ void adc_initialize(void)
      * Have to integer written to bitfield should be total number of channels used - 1*/
     ADC3->SQR1 |= ((ADC_CHANNELS_USED - 1) << ADC_SQR1_L_Pos);
     
-    gpio_configure_pin(ADC3_CHANNEL4, GPIO_MODE_ANALOG, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
-    gpio_configure_pin(ADC3_CHANNEL5, GPIO_MODE_ANALOG, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
-    gpio_configure_pin(ADC3_CHANNEL6, GPIO_MODE_ANALOG, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
-    gpio_configure_pin(ADC3_CHANNEL7, GPIO_MODE_ANALOG, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(ADC123_CHANNEL10, GPIO_MODE_ANALOG, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(ADC123_CHANNEL11, GPIO_MODE_ANALOG, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(ADC123_CHANNEL12, GPIO_MODE_ANALOG, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(ADC123_CHANNEL13, GPIO_MODE_ANALOG, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED);
 
     /* Sanity check to make sure the pins are initialized properly */
-    ASSERT(gpio_config_compare(ADC3_CHANNEL4, GPIOF, 6, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED));
-    ASSERT(gpio_config_compare(ADC3_CHANNEL5, GPIOF, 7, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED));
-    ASSERT(gpio_config_compare(ADC3_CHANNEL6, GPIOF, 8, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED));
-    ASSERT(gpio_config_compare(ADC3_CHANNEL7, GPIOF, 9, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED));
+    ASSERT(gpio_config_compare(ADC123_CHANNEL10, GPIOC, 0, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED));
+    ASSERT(gpio_config_compare(ADC123_CHANNEL11, GPIOC, 1, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED));
+    ASSERT(gpio_config_compare(ADC123_CHANNEL12, GPIOC, 2, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED));
+    ASSERT(gpio_config_compare(ADC123_CHANNEL13, GPIOC, 3, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED));
 
     initialized = true;
+
+    adc_enable();
 }
 
-#if 0
-void adc_enable(void);
-void adc_disable(void);
-void adc_start_conversion(void);
-#endif
+void adc_enable(void)
+{
+    ASSERT(initialized);
+    ADC3->CR2 |= ADC_CR2_ADON;
+}
+
+void adc_conversion_start(uint8_t channel)
+{
+    ADC3->SQR3 = 0;
+    ADC3->SQR3 |= (channel << 0);
+
+    ADC3->SR = 0;
+    ADC3->CR2 |= (1 << 30);
+}
+
+void adc_conversion_wait(void)
+{
+    while (!(ADC3->SR & (1 << 1))) {}
+}
+
+uint16_t adc_value_get(void)
+{
+    return ADC3->DR;
+}
