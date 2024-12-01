@@ -65,6 +65,9 @@ void adc_initialize(void)
     initialized = true;
 
     adc_enable();
+
+    /* DMA initialization */
+    adc_dma_initialize();
 }
 
 void adc_enable(void)
@@ -90,4 +93,27 @@ void adc_conversion_wait(void)
 uint16_t adc_value_get(void)
 {
     return ADC3->DR;
+}
+
+void adc_dma_initialize(void)
+{
+    /* Enable DMA and continuous DMA conversion in CR2
+     * Set the sequence for the channels in SQRx 
+     * Check DMA channel mapping in the reference manual and choose accordingly
+     * Use circular mode for infinite data transfer. Possibly change in the future? 
+     * DMA Low/High interrupt status registers and their clear flags used for interrupt implementation
+     * Enable DMAx clock in RCC AHB1 
+     * Configure the stream in DMA SxCR
+     *  DIR should be 0b00 because we are using ADC Peripheral to memory with DMA 
+     *  CIRC should be enabled 
+     *  PINC set to 0, since we are only copying from a static address ADC Data Register
+     *  MINC set to 1, the buffer will auto increment and next data will be saved in new location
+     *  PSIZE/MSIZE set to 0b01 for 16 bit half word size, we are using 12 bit ADC values
+     *  CHSEL set accordingly for channels used 
+     * 
+     * Set size of transfer in NDTR, the number of values we want to send, so 4 in this case(?)
+     * Set source address of ADC in PAR 
+     * Set destination address of memory in M0AR, M1AR can only be used in double buffer mode 
+     *
+     * Only enable DMA in CR bit 0 as the final thing, because some registers turn read only when its enabled. */
 }
