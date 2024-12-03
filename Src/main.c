@@ -1,5 +1,4 @@
 #include <stm32f4xx.h>
-#include "test.h"
 #include "led.h"
 #include "uart.h"
 #include "ir_receiver.h"
@@ -15,7 +14,8 @@ int main(void)
 	adc_initialize();
 
 	while (1) {
-		test_adc_polling();
+		adc_dma_print_values();
 		led_toggle(LED_GREEN);
+		systick_delay_ms(1000);
 	}
 }

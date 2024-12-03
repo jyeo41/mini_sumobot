@@ -102,6 +102,7 @@ void ir_receiver_initialize(void)
     ir_receiver_initialized = true;
 }
 
+// cppcheck-suppress unusedFunction
 const char* ir_receiver_get_cmd(void)
 {
     /* Handle possible race condition of reading from ring buffer and ISR potentially writing to it
