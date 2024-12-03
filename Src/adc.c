@@ -6,12 +6,15 @@
 #include <stdbool.h>
 
 #define ADC_CHANNELS_USED       4
+
+/* ADC Channels used for sampling */
 #define ADC123_CHANNEL_10_SQR  10
 #define ADC123_CHANNEL_11_SQR  11
 #define ADC123_CHANNEL_12_SQR  12
 #define ADC123_CHANNEL_13_SQR  13
 
 static uint16_t adc_dma_buffer[ADC_CHANNELS_USED];
+static uint16_t adc_dma_buffer_safe[ADC_CHANNELS_USED];
 
 static bool adc_initialized = false;
 static bool dma_initialized = false;
@@ -19,6 +22,8 @@ static bool dma_initialized = false;
 static void adc_dma_initialize(void);
 static void adc_enable(void);
 static void adc_conversion_start(void);
+static void adc_dma_interrupt_transfer_complete_disable(void);
+static void adc_dma_interrupt_transfer_complete_enable(void);
 
 void adc_initialize(void)
 {
@@ -93,8 +98,28 @@ void adc_initialize(void)
 
 void adc_dma_print_values(void)
 {
+    /* Briefly disable DMA interrupt to make reading from adc_dma_buffer_safe, safe */
+    adc_dma_interrupt_transfer_complete_disable();
     for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
-        TRACE("Channel %u Value: %u", (i + 4), adc_dma_buffer[i]);
+        TRACE("Channel %u Value: %u", (i + 4), adc_dma_buffer_safe[i]);
+    }
+    adc_dma_interrupt_transfer_complete_enable();
+}
+
+// cppcheck-suppress unusedFunction
+void DMA2_Stream0_IRQHandler(void)
+{
+    /* Transfer complete interrupt flag. Clear the flag in software. Copy values to adc_dma_buffer_safe[] */
+    if (DMA2->LISR & DMA_LISR_TCIF0) {
+        DMA2->LIFCR |= DMA_LIFCR_CTCIF0;
+        for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
+            adc_dma_buffer_safe[i] = adc_dma_buffer[i];
+        }
+    }
+    
+    /* Transfer error interrupt. */
+    if (DMA2->LISR & DMA_LISR_TEIF0) {
+        DMA2->LIFCR |= DMA_LIFCR_CTEIF0;
     }
 }
 
@@ -106,6 +131,7 @@ static void adc_dma_initialize(void)
      * Enable DMA and continuous DMA conversion in CR2
      * Check DMA channel mapping in the reference manual and choose accordingly,
      *  ADC 3 uses DMA2 Stream 0 Channel 2 or Stream 1 Channel 2
+     *  I will use Stream 0 Channel 2
      * Enable DMAx clock in RCC AHB1 
      *
      * Configure the stream in DMA SxCR:
@@ -179,6 +205,17 @@ static void adc_dma_initialize(void)
     /* DMA Set to direct mode, no FIFO */
     DMA2_Stream0->FCR &= ~(DMA_SxFCR_DMDIS);
 
+    /* Enable transfer complete interrupt. Clear corresponding event flag prior, otherwise an interrupt is generated immediately. */
+    adc_dma_interrupt_transfer_complete_enable();
+
+    /* Enable transfer error interrupt. Clear corresopnding event flag prior. */
+    DMA2->LIFCR |= DMA_LIFCR_CTEIF0;
+    DMA2_Stream0->CR |= DMA_SxCR_TEIE;
+
+    /* Enable interrupts from the processor side. */
+    NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+    NVIC_SetPriority(DMA2_Stream0_IRQn, 1);
+
     /* Enable DMA stream as final step */
     DMA2_Stream0->CR |= DMA_SxCR_EN;
     
@@ -195,4 +232,17 @@ static void adc_conversion_start(void)
 {
     ADC3->SR = 0;
     ADC3->CR2 |= ADC_CR2_SWSTART;
+}
+
+static void adc_dma_interrupt_transfer_complete_disable(void)
+{
+    /* Disable transfer complete interrupt briefly when reading from array */
+    DMA2->LIFCR |= DMA_LIFCR_CTCIF0;
+    DMA2_Stream0->CR &= ~(DMA_SxCR_TCIE);
+}
+
+static void adc_dma_interrupt_transfer_complete_enable(void)
+{
+    DMA2->LIFCR |= DMA_LIFCR_CTCIF0;
+    DMA2_Stream0->CR |= DMA_SxCR_TCIE;
 }
