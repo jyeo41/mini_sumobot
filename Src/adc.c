@@ -6,8 +6,6 @@
 #include <stm32f4xx.h>
 #include <stdbool.h>
 
-#define ADC_CHANNELS_USED       4
-
 /* ADC Channels used for sampling */
 #define ADC123_CHANNEL_10_SQR  10
 #define ADC123_CHANNEL_11_SQR  11
@@ -15,9 +13,7 @@
 #define ADC123_CHANNEL_13_SQR  13
 
 static volatile uint16_t adc_dma_buffer[ADC_CHANNELS_USED];
-static volatile uint16_t adc_dma_buffer_safe[ADC_CHANNELS_USED];
-
-static uint16_t adc_dma_print_values[ADC_CHANNELS_USED];
+static volatile uint16_t adc_dma_buffer_isr[ADC_CHANNELS_USED];
 
 static bool adc_initialized = false;
 static bool dma_initialized = false;
@@ -26,7 +22,6 @@ static void adc_dma_initialize(void);
 static void adc_enable(void);
 static void adc_conversion_start(void);
 static void adc_dma_interrupt_transfer_complete_enable(void);
-static void adc_dma_trace_values(void);
 
 void adc_initialize(void)
 {
@@ -96,35 +91,35 @@ void adc_initialize(void)
     adc_enable();
     adc_conversion_start();
 }
-
-/* This function is really only used for testing purposes and to check the values being read by the ADC
- * can be properly printed out into terminal over UART while using a potentiometer or jumper wire to manually 
- * pull each of the GPIO pins.
+/*
+ * This function will be used by the QRE1113 driver to extract the updated ADC values into an independent array that can be freely
+ * used without having to worry about interrupt race condition handling. All of the interrupt logic should be handled inside of 
+ * this adc_dma driver.
  *
- * The adc_dma_print_values[] array is specifically used to trace/print the ADC values.
- * For some reason, trying to print directly from the adc_dma_buffer_safe inside of a critical section 
+ * For some reason, trying to print directly from the adc_dma_buffer_isr inside of a critical section 
  *  causes issues with printing values to a serial terminal.
- * As a workaround, copy the values from adc_dma_buffer_safe to adc_dma_print_values so the TRACE macro can print independently
- *  from an array that isn't reliant on being inside of a critical section.
+ * As a workaround, copy the values from adc_dma_buffer_isr to an independent array so the TRACE macro can print
+ *  from an array that isn't reliant on being inside of a critical section to work properly.
  */
-void adc_dma_get_values(void)
+void adc_dma_get_values(uint16_t adc_dma_values[])
 {
     /* Briefly disable global interrupts to handle race condition while reading from data buffer. 
      * For some reason, disabling ONLY the DMA transfer complete interrupt causes unknown issues.
      */
     __disable_irq();
     for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
-        adc_dma_print_values[i] = adc_dma_buffer_safe[i];
+        adc_dma_values[i] = adc_dma_buffer_isr[i];
     }
     __enable_irq();
-    adc_dma_trace_values();
 }
 
-/* Function to be used with adc_dma_get_values() for debugging and testing purposes */
-static void adc_dma_trace_values(void)
+/* Function to be used with adc_dma_get_values() for debugging and testing purposes.
+ * Pass in the same array used with adc_dma_get_values() function into this function
+ * to print the values to terminal. */
+void adc_dma_print_values(const uint16_t adc_dma_values[])
 {
     for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
-        TRACE("Channel %u: %u", (i + 10), adc_dma_print_values[i]);
+        TRACE("Channel %u: %u", (i + 10), adc_dma_values[i]);
     }
 }
 
@@ -132,11 +127,11 @@ static void adc_dma_trace_values(void)
 void DMA2_Stream0_IRQHandler(void)
 {
     //led_toggle(LED_ORANGE);
-    /* Transfer complete interrupt flag. Clear the flag in software. Copy values to adc_dma_buffer_safe[] */
+    /* Transfer complete interrupt flag. Clear the flag in software. Copy values to adc_dma_buffer_isr[] */
     if (DMA2->LISR & DMA_LISR_TCIF0) {
         DMA2->LIFCR |= DMA_LIFCR_CTCIF0;
         for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
-            adc_dma_buffer_safe[i] = adc_dma_buffer[i];
+            adc_dma_buffer_isr[i] = adc_dma_buffer[i];
         }
 
         /* Reference Manual states the DMA bit in ADCx CR2 MUST be cleared and rewritten in software to start
