@@ -2,8 +2,9 @@
 #include "led.h"
 #include "uart.h"
 #include "ir_receiver.h"
-#include "adc.h"
 #include "systick.h"
+#include "qre1113.h"
+#include "adc.h"
 
 int main(void)
 {
@@ -11,13 +12,13 @@ int main(void)
 	led_initialize();
 	uart2_initialize();
 	ir_receiver_initialize();
-	adc_initialize();
+	qre1113_initialize();
 
-	uint16_t adc_values[ADC_CHANNELS_USED];
+	qre1113_voltages_t voltages;
 
 	while (1) {
-		adc_dma_get_values(adc_values);
-		adc_dma_print_values(adc_values);
+		qre1113_get_voltages(&voltages);
+		qre1113_print_voltages(&voltages);
 		led_toggle(LED_GREEN);
 		systick_delay_ms(1000);
 	}

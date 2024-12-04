@@ -115,7 +115,9 @@ void adc_dma_get_values(uint16_t adc_dma_values[])
 
 /* Function to be used with adc_dma_get_values() for debugging and testing purposes.
  * Pass in the same array used with adc_dma_get_values() function into this function
- * to print the values to terminal. */
+ * to print the values to terminal. 
+ */
+// cppcheck-suppress unusedFunction
 void adc_dma_print_values(const uint16_t adc_dma_values[])
 {
     for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
