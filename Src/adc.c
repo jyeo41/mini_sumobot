@@ -119,7 +119,7 @@ void adc_dma_get_values(uint16_t adc_dma_values[])
 void adc_dma_print_values(const uint16_t adc_dma_values[])
 {
     for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
-        TRACE("Channel %u: %u", (i + 10), adc_dma_values[i]);
+        TRACE("Channel %u: %u\n", (i + 10), adc_dma_values[i]);
     }
 }
 
