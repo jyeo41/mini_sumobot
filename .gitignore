@@ -16,3 +16,5 @@ cppcheck.report
 # ignore compile_commands.json which is a clangd file, not used for building
 compile_commands.json
 
+# ignore manuals and datasheet pdfs
+*.pdf

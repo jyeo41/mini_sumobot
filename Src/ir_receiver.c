@@ -102,6 +102,7 @@ void ir_receiver_initialize(void)
     ir_receiver_initialized = true;
 }
 
+// cppcheck-suppress unusedFunction
 const char* ir_receiver_get_cmd(void)
 {
     /* Handle possible race condition of reading from ring buffer and ISR potentially writing to it
@@ -229,7 +230,7 @@ static void timer_initialize(void)
 
     /* Enable TIM2 interrupt in the NVIC */
     NVIC_EnableIRQ(TIM2_IRQn);
-    NVIC_SetPriority(TIM2_IRQn, 0);
+    NVIC_SetPriority(TIM2_IRQn, 1);
 
     timer_initialized = true;
 }
