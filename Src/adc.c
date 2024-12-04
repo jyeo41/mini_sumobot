@@ -2,6 +2,7 @@
 #include "gpio.h"
 #include "assert_handler.h"
 #include "trace.h"
+#include "led.h"
 #include <stm32f4xx.h>
 #include <stdbool.h>
 
@@ -13,8 +14,8 @@
 #define ADC123_CHANNEL_12_SQR  12
 #define ADC123_CHANNEL_13_SQR  13
 
-static uint16_t adc_dma_buffer[ADC_CHANNELS_USED];
-static uint16_t adc_dma_buffer_safe[ADC_CHANNELS_USED];
+static volatile uint16_t adc_dma_buffer[ADC_CHANNELS_USED];
+static volatile uint16_t adc_dma_buffer_safe[ADC_CHANNELS_USED];
 
 static bool adc_initialized = false;
 static bool dma_initialized = false;
@@ -36,8 +37,6 @@ void adc_initialize(void)
      * Set regular channel sequence length in SQR1
      * Set GPIO pins to analog mode
      */
-
-    /* Use ADC3 channels 10, 11, 12, 13 which are mapped to pins PFC 0, 1, 2, 3 */
     RCC->APB2ENR |= RCC_APB2ENR_ADC3EN;
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
 
@@ -45,16 +44,16 @@ void adc_initialize(void)
      * The max for ADCCLK is 36 MHz. */
     ADC->CCR &= ~(ADC_CCR_ADCPRE);
 
-    /* Scan mode to continuous by setting the bit. This is because we are using multiple channels.
+    /* Set scan mode bit because we are using multiple channels.
      * Resolution to 12 bits by clearing both bits. */
     ADC3->CR1 |= ADC_CR1_SCAN;
     ADC3->CR1 &= ~(ADC_CR1_RES);
 
-    /* Continuous convesion mode by setting CONT bit to 1. 
+    /* Set single conversion mode by clearing CONT bit.
      * EOC flag to set at the end of each sequence of regular conversions by clearing this bit. 
      *  Overrun detection is enabled only if DMA = 1
      * Set right alignment by clearing ALIGN bit. */
-    ADC3->CR2 |= ADC_CR2_CONT;
+    ADC3->CR2 &= ~(ADC_CR2_CONT);
     ADC3->CR2 &= ~(ADC_CR2_EOCS);
     ADC3->CR2 &= ~(ADC_CR2_ALIGN);
 
@@ -98,7 +97,7 @@ void adc_initialize(void)
 
 void adc_dma_print_values(void)
 {
-    /* Briefly disable DMA interrupt to make reading from adc_dma_buffer_safe, safe */
+    /* Briefly disable DMA interrupt to handle race condition while reading from data buffer */
     adc_dma_interrupt_transfer_complete_disable();
     for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
         TRACE("Channel %u Value: %u", (i + 4), adc_dma_buffer_safe[i]);
@@ -109,12 +108,27 @@ void adc_dma_print_values(void)
 // cppcheck-suppress unusedFunction
 void DMA2_Stream0_IRQHandler(void)
 {
+    led_toggle(LED_ORANGE);
     /* Transfer complete interrupt flag. Clear the flag in software. Copy values to adc_dma_buffer_safe[] */
     if (DMA2->LISR & DMA_LISR_TCIF0) {
         DMA2->LIFCR |= DMA_LIFCR_CTCIF0;
         for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
             adc_dma_buffer_safe[i] = adc_dma_buffer[i];
         }
+
+        /* Reference Manual states the DMA bit in ADCx CR2 MUST be cleared and rewritten in software to start
+         * a new transfer in single conversion mode. ADC Section 13.8.1 "Using the DMA" 
+         * I am using direct register writes to keep the ISR decoupled from other functions as much as possible.
+         *
+         * First clear and write DMA bit in ADC->CR2
+         * Reset the reload value in DMA_SxNDTR
+         * Enable the stream in DMA_SxCR_EN
+         * Start the ADC conversion by writing to ADC_CR2_SWSTART */
+        ADC3->CR2 &= ~(ADC_CR2_DMA);
+        ADC3->CR2 |= ADC_CR2_DMA;
+        DMA2_Stream0->NDTR = ADC_CHANNELS_USED;
+        DMA2_Stream0->CR |= DMA_SxCR_EN;
+        ADC3->CR2 |= ADC_CR2_SWSTART;
     }
     
     /* Transfer error interrupt. */
@@ -167,9 +181,9 @@ static void adc_dma_initialize(void)
     /* Enable clock*/
     RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN;
 
-    /* Enable DMA and and set continuous conversion for DMA by setting DDS bit in CR2 */
+    /* Enable DMA and and set single conversion for DMA by clearing DDS bit in CR2 */
     ADC3->CR2 |= ADC_CR2_DMA;
-    ADC3->CR2 |= ADC_CR2_DDS;
+    ADC3->CR2 &= ~(ADC_CR2_DDS);
 
     /* Disable stream first and read the bit until its 0. */
     DMA2_Stream0->CR &= ~(DMA_SxCR_EN);
@@ -181,7 +195,7 @@ static void adc_dma_initialize(void)
 
     /* Set source (PAR) and destination addresses M0AR) */
     DMA2_Stream0->PAR = (uint32_t)(&(ADC3->DR));
-    DMA2_Stream0->M0AR = (uint32_t)(&adc_dma_buffer);
+    DMA2_Stream0->M0AR = (uint32_t)adc_dma_buffer;
     
     /* Set number of transfers */
     DMA2_Stream0->NDTR = (uint16_t)ADC_CHANNELS_USED;
@@ -195,8 +209,8 @@ static void adc_dma_initialize(void)
     /* Set memory increment to 1 because we want to increment the index of the destination array buffer */
     DMA2_Stream0->CR |= DMA_SxCR_MINC;
 
-    /* Set DMA Circular mode enabled */
-    DMA2_Stream0->CR |= DMA_SxCR_CIRC;
+    /* Disable DMA Circular mode, we want non-circular mode */
+    DMA2_Stream0->CR &= ~(DMA_SxCR_CIRC);
 
     /* Set peripheral and memory size to half word byte width */
     DMA2_Stream0->CR |= (1 << DMA_SxCR_MSIZE_Pos);
@@ -214,7 +228,7 @@ static void adc_dma_initialize(void)
 
     /* Enable interrupts from the processor side. */
     NVIC_EnableIRQ(DMA2_Stream0_IRQn);
-    NVIC_SetPriority(DMA2_Stream0_IRQn, 1);
+    NVIC_SetPriority(DMA2_Stream0_IRQn, 0);
 
     /* Enable DMA stream as final step */
     DMA2_Stream0->CR |= DMA_SxCR_EN;
@@ -230,7 +244,6 @@ static void adc_enable(void)
 
 static void adc_conversion_start(void)
 {
-    ADC3->SR = 0;
     ADC3->CR2 |= ADC_CR2_SWSTART;
 }
 
