@@ -12,9 +12,8 @@ int main(void)
 	uart2_initialize();
 	ir_receiver_initialize();
 	adc_initialize();
-
 	while (1) {
-		//adc_dma_print_values();
+		adc_dma_get_values();
 		led_toggle(LED_GREEN);
 		systick_delay_ms(1000);
 	}

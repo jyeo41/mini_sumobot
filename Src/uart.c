@@ -56,7 +56,7 @@ void uart2_initialize(void)
 
     /* Enable the USART2 which is IRQ 38 */
     NVIC_EnableIRQ(USART2_IRQn);
-    NVIC_SetPriority(USART2_IRQn, 1);
+    NVIC_SetPriority(USART2_IRQn, 0);
 
     initialized = true;
 }

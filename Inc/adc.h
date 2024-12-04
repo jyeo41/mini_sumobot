@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 void adc_initialize(void);
-void adc_dma_print_values(void);
-uint16_t adc_value_get(void);
+void adc_dma_get_values(void);
 
 #endif /* ADC_H_ */

@@ -17,14 +17,16 @@
 static volatile uint16_t adc_dma_buffer[ADC_CHANNELS_USED];
 static volatile uint16_t adc_dma_buffer_safe[ADC_CHANNELS_USED];
 
+static uint16_t adc_dma_print_values[ADC_CHANNELS_USED];
+
 static bool adc_initialized = false;
 static bool dma_initialized = false;
 
 static void adc_dma_initialize(void);
 static void adc_enable(void);
 static void adc_conversion_start(void);
-static void adc_dma_interrupt_transfer_complete_disable(void);
 static void adc_dma_interrupt_transfer_complete_enable(void);
+static void adc_dma_trace_values(void);
 
 void adc_initialize(void)
 {
@@ -95,20 +97,41 @@ void adc_initialize(void)
     adc_conversion_start();
 }
 
-void adc_dma_print_values(void)
+/* This function is really only used for testing purposes and to check the values being read by the ADC
+ * can be properly printed out into terminal over UART while using a potentiometer or jumper wire to manually 
+ * pull each of the GPIO pins.
+ *
+ * The adc_dma_print_values[] array is specifically used to trace/print the ADC values.
+ * For some reason, trying to print directly from the adc_dma_buffer_safe inside of a critical section 
+ *  causes issues with printing values to a serial terminal.
+ * As a workaround, copy the values from adc_dma_buffer_safe to adc_dma_print_values so the TRACE macro can print independently
+ *  from an array that isn't reliant on being inside of a critical section.
+ */
+void adc_dma_get_values(void)
 {
-    /* Briefly disable DMA interrupt to handle race condition while reading from data buffer */
-    adc_dma_interrupt_transfer_complete_disable();
+    /* Briefly disable global interrupts to handle race condition while reading from data buffer. 
+     * For some reason, disabling ONLY the DMA transfer complete interrupt causes unknown issues.
+     */
+    __disable_irq();
     for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
-        TRACE("Channel %u Value: %u", (i + 4), adc_dma_buffer_safe[i]);
+        adc_dma_print_values[i] = adc_dma_buffer_safe[i];
     }
-    adc_dma_interrupt_transfer_complete_enable();
+    __enable_irq();
+    adc_dma_trace_values();
+}
+
+/* Function to be used with adc_dma_get_values() for debugging and testing purposes */
+static void adc_dma_trace_values(void)
+{
+    for (uint8_t i = 0; i < ADC_CHANNELS_USED; i++) {
+        TRACE("Channel %u: %u", (i + 10), adc_dma_print_values[i]);
+    }
 }
 
 // cppcheck-suppress unusedFunction
 void DMA2_Stream0_IRQHandler(void)
 {
-    led_toggle(LED_ORANGE);
+    //led_toggle(LED_ORANGE);
     /* Transfer complete interrupt flag. Clear the flag in software. Copy values to adc_dma_buffer_safe[] */
     if (DMA2->LISR & DMA_LISR_TCIF0) {
         DMA2->LIFCR |= DMA_LIFCR_CTCIF0;
@@ -222,13 +245,13 @@ static void adc_dma_initialize(void)
     /* Enable transfer complete interrupt. Clear corresponding event flag prior, otherwise an interrupt is generated immediately. */
     adc_dma_interrupt_transfer_complete_enable();
 
-    /* Enable transfer error interrupt. Clear corresopnding event flag prior. */
+    /* Enable transfer error interrupt. Clear corresponding event flag prior. */
     DMA2->LIFCR |= DMA_LIFCR_CTEIF0;
     DMA2_Stream0->CR |= DMA_SxCR_TEIE;
 
     /* Enable interrupts from the processor side. */
     NVIC_EnableIRQ(DMA2_Stream0_IRQn);
-    NVIC_SetPriority(DMA2_Stream0_IRQn, 0);
+    NVIC_SetPriority(DMA2_Stream0_IRQn, 1);
 
     /* Enable DMA stream as final step */
     DMA2_Stream0->CR |= DMA_SxCR_EN;
@@ -247,12 +270,15 @@ static void adc_conversion_start(void)
     ADC3->CR2 |= ADC_CR2_SWSTART;
 }
 
+#if 0
 static void adc_dma_interrupt_transfer_complete_disable(void)
 {
     /* Disable transfer complete interrupt briefly when reading from array */
     DMA2->LIFCR |= DMA_LIFCR_CTCIF0;
     DMA2_Stream0->CR &= ~(DMA_SxCR_TCIE);
 }
+#endif
+
 
 static void adc_dma_interrupt_transfer_complete_enable(void)
 {
