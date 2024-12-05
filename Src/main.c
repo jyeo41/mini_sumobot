@@ -2,8 +2,8 @@
 #include "led.h"
 #include "uart.h"
 #include "ir_receiver.h"
-#include "adc.h"
 #include "systick.h"
+#include "edge_detect.h"
 
 int main(void)
 {
@@ -11,14 +11,11 @@ int main(void)
 	led_initialize();
 	uart2_initialize();
 	ir_receiver_initialize();
-	adc_initialize();
-
-	uint16_t adc_values[ADC_CHANNELS_USED];
+	edge_detect_initialize();
 
 	while (1) {
-		adc_dma_get_values(adc_values);
-		adc_dma_print_values(adc_values);
+		edge_detect_location_print(edge_detect_lookup());
 		led_toggle(LED_GREEN);
-		systick_delay_ms(1000);
+		systick_delay_ms(500);
 	}
 }
