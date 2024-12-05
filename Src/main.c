@@ -3,8 +3,7 @@
 #include "uart.h"
 #include "ir_receiver.h"
 #include "systick.h"
-#include "qre1113.h"
-#include "adc.h"
+#include "edge_detect.h"
 
 int main(void)
 {
@@ -12,14 +11,11 @@ int main(void)
 	led_initialize();
 	uart2_initialize();
 	ir_receiver_initialize();
-	qre1113_initialize();
-
-	qre1113_voltages_t voltages;
+	edge_detect_initialize();
 
 	while (1) {
-		qre1113_get_voltages(&voltages);
-		qre1113_print_voltages(&voltages);
+		edge_detect_location_print(edge_detect_lookup());
 		led_toggle(LED_GREEN);
-		systick_delay_ms(1000);
+		systick_delay_ms(500);
 	}
 }

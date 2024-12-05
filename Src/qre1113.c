@@ -29,6 +29,7 @@ void qre1113_get_voltages(qre1113_voltages_t* voltages)
 }
 
 /* Function to test voltages are being properly assigned in the qre1113_voltages struct */
+// cppcheck-suppress unusedFunction
 void qre1113_print_voltages(const qre1113_voltages_t* voltages)
 {
     TRACE("\nFront left: %u\n"
