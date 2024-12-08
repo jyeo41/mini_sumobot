@@ -53,6 +53,7 @@ void edge_detect_initialize(void)
 
 /* Initially the logic was done by using a giant nested if else statement, but to clean up the code and to
  * make the code more readable, the use of a bitmask and lookup table gives a more elegant solution. */
+// cppcheck-suppress unusedFunction
 edge_detect_location_e edge_detect_lookup(void)
 {
     /* Initialize a struct that will extract the ADC voltages and store those values. */
@@ -77,6 +78,7 @@ edge_detect_location_e edge_detect_lookup(void)
  *
  * It will use the return output from the edge_detect_lookup() function as its input
  * and convert the returned enum to a string representation then print it out. */ 
+// cppcheck-suppress unusedFunction
 void edge_detect_location_print(edge_detect_location_e edge)
 {
     /* Assign the appropriate string literal at run time */

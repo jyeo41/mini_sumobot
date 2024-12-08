@@ -4,6 +4,7 @@
 #include "ir_receiver.h"
 #include "systick.h"
 #include "edge_detect.h"
+#include "i2c.h"
 
 int main(void)
 {
@@ -12,9 +13,9 @@ int main(void)
 	uart2_initialize();
 	ir_receiver_initialize();
 	edge_detect_initialize();
+	i2c_initialize();
 
 	while (1) {
-		edge_detect_location_print(edge_detect_lookup());
 		led_toggle(LED_GREEN);
 		systick_delay_ms(500);
 	}
