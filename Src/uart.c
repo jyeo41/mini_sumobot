@@ -31,8 +31,11 @@ void uart2_initialize(void)
      * Won't be using receive pin, but still set it as a pair for Tx and Rx.
      * Refer to datasheet, Chapter 3 Pinouts and Pin Description, Table 9 for AF mappings.
      * Refer to Reference Manual, Chapter 8 GPIO, 8.3.2 I/O pin multiplexer and mapping for specific AF number */
-    gpio_configure_pin(UART2_BOARD_TX, GPIO_MODE_ALTERNATE, GPIO_AF7, GPIO_RESISTOR_DISABLED);
-    gpio_configure_pin(UART2_BOARD_RX, GPIO_MODE_ALTERNATE, GPIO_AF7, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(UART2_BOARD_TX, GPIO_MODE_ALTERNATE, GPIO_AF7, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL);
+    gpio_configure_pin(UART2_BOARD_RX, GPIO_MODE_ALTERNATE, GPIO_AF7, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL);
+
+    ASSERT(gpio_config_compare(UART2_BOARD_TX, GPIOA, 2, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL));
+    ASSERT(gpio_config_compare(UART2_BOARD_RX, GPIOA, 3, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL));
 
     /* Enable the clock gate for UART */
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;

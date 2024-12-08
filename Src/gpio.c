@@ -14,17 +14,19 @@
  * The application can change some of the attributes at runtime however, the pin name, port, and pin number should be immutable.
  */
 static gpio_pin_t gpio_board_pins[] = {
-    [LED_GREEN] =           {GPIOD, 12, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
-    [LED_ORANGE] =          {GPIOD, 13, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
-    [LED_RED] =             {GPIOD, 14, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
-    [LED_BLUE] =            {GPIOD, 15, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED},
-    [UART2_BOARD_TX] =      {GPIOA, 2, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED},
-    [UART2_BOARD_RX] =      {GPIOA, 3, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED},
-    [IR_RECEIVER] =         {GPIOA, 15, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED},
-    [ADC123_CHANNEL10] =    {GPIOC, 0, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED},
-    [ADC123_CHANNEL11] =    {GPIOC, 1, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED},
-    [ADC123_CHANNEL12] =    {GPIOC, 2, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED},
-    [ADC123_CHANNEL13] =    {GPIOC, 3, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED},
+    [LED_GREEN] =           {GPIOD, 12, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [LED_ORANGE] =          {GPIOD, 13, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [LED_RED] =             {GPIOD, 14, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [LED_BLUE] =            {GPIOD, 15, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [UART2_BOARD_TX] =      {GPIOA, 2, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [UART2_BOARD_RX] =      {GPIOA, 3, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [IR_RECEIVER] =         {GPIOA, 15, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [ADC123_CHANNEL10] =    {GPIOC, 0, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [ADC123_CHANNEL11] =    {GPIOC, 1, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [ADC123_CHANNEL12] =    {GPIOC, 2, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [ADC123_CHANNEL13] =    {GPIOC, 3, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [I2C2_SCL] =            {GPIOB, 10, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN},
+    [I2C2_SDA] =            {GPIOB, 11, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN},
 };
 
 /* Mapping pin numbers to their corresponding MODE register as a 2D array.
@@ -120,34 +122,16 @@ static const uint16_t gpio_odr_register_bit[] = {
     [15] = GPIO_ODR_OD15,
 };
 
-#if 0
-void gpio_default_initialize(void)
-{
-    /* Set the clock gate to enable Port A for UART2, PA2 */
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-
-    /* Set the clock gate to enable Port B for IR Receiver, PB0 */
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
-
-    /* Set the clock gate to enable Port D for Board LEDs */
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN;
-
-    volatile uint8_t i;
-    for (i = 0; i < GPIO_BOARD_PINS_LENGTH; i++) {
-        gpio_mode_set(i, gpio_board_pins[i].mode);
-    }
-}
-#endif
-
 /* Function to call other gpio setting helper functions. */
 void gpio_configure_pin(gpio_pin_names_e pin_name, gpio_mode_e mode,
-			gpio_alternate_function_e af, gpio_resistor_e resistor)
+			gpio_alternate_function_e af, gpio_resistor_e resistor, gpio_otype_e otype)
 {
     gpio_mode_set(pin_name, mode);
     if (mode == GPIO_MODE_ALTERNATE) {
         gpio_alternate_function_set(pin_name, af);
     }
     gpio_resistor_set(pin_name, resistor);
+    gpio_otype_set(pin_name, otype);
 }
 
 /* Make all the incoming parameters constants because they should be read only.
@@ -156,14 +140,16 @@ bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
 			 const GPIO_TypeDef* const expected_port,
 			 const uint8_t expected_pin_number,
 			 const gpio_mode_e expected_mode,
-			 const gpio_resistor_e expected_resistor)
+			 const gpio_resistor_e expected_resistor,
+                         const gpio_otype_e expected_otype)
 {
     const gpio_pin_t test_pin = gpio_board_pins[pin_to_check];
 
     return ((test_pin.port == expected_port) &&
             (test_pin.pin_number == expected_pin_number) &&
             (test_pin.mode == expected_mode) &&
-            (test_pin.resistor == expected_resistor));
+            (test_pin.resistor == expected_resistor) &&
+            (test_pin.otype == expected_otype));
 }
 
 void gpio_mode_set(gpio_pin_names_e pin_name, gpio_mode_e desired_mode)
@@ -236,6 +222,22 @@ void gpio_resistor_set(gpio_pin_names_e pin_name, gpio_resistor_e resistor)
             break;
     }
     gpio_board_pins[pin_name].resistor = resistor;
+}
+
+/* Setting the output type in OTYPER register. */
+void gpio_otype_set(gpio_pin_names_e pin_name, gpio_otype_e otype)
+{
+    gpio_pin_t pin = gpio_board_pins[pin_name];
+
+    switch (otype) {
+        case GPIO_OTYPE_PUSHPULL:
+            pin.port->OTYPER |= (0 << pin.pin_number);
+            break;
+        case GPIO_OTYPE_OPENDRAIN:
+            pin.port->OTYPER |= (1 << pin.pin_number);
+            break;
+    }
+    gpio_board_pins[pin_name].otype = otype;
 }
 
 #if 0
