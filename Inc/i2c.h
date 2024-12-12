@@ -12,8 +12,7 @@ typedef enum {
 void i2c_initialize(void);
 i2c_return_error_e i2c_write(const uint8_t device_addr, const uint8_t* register_addr, uint8_t register_addr_size,
 				   uint8_t* data, uint8_t data_size);
-i2c_return_error_e i2c_read(const uint8_t device_addr, const uint8_t* register_addr, uint8_t register_addr_size,
-				   uint8_t* data, uint8_t data_size);
+void i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* data, uint8_t data_size);
 
 
 

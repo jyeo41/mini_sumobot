@@ -19,6 +19,7 @@ typedef enum {
 	ADC123_CHANNEL13,
 	I2C2_SCL,
 	I2C2_SDA,
+	VL53L0X_XSHUT,
 }gpio_pin_names_e;
 
 typedef enum {
