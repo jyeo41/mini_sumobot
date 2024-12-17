@@ -14,20 +14,20 @@
  * The application can change some of the attributes at runtime however, the pin name, port, and pin number should be immutable.
  */
 static gpio_pin_t gpio_board_pins[] = {
-    [LED_GREEN] =           {GPIOD, 12, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [LED_ORANGE] =          {GPIOD, 13, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [LED_RED] =             {GPIOD, 14, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [LED_BLUE] =            {GPIOD, 15, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [UART2_BOARD_TX] =      {GPIOA, 2, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [UART2_BOARD_RX] =      {GPIOA, 3, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [IR_RECEIVER] =         {GPIOA, 15, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [ADC123_CHANNEL10] =    {GPIOC, 0, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [ADC123_CHANNEL11] =    {GPIOC, 1, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [ADC123_CHANNEL12] =    {GPIOC, 2, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [ADC123_CHANNEL13] =    {GPIOC, 3, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
-    [I2C2_SCL] =            {GPIOB, 10, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN},
-    [I2C2_SDA] =            {GPIOB, 11, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN},
-    [VL53L0X_XSHUT] =       {GPIOA, 5, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL},
+    [LED_GREEN] =           {GPIOD, 12, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [LED_ORANGE] =          {GPIOD, 13, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [LED_RED] =             {GPIOD, 14, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [LED_BLUE] =            {GPIOD, 15, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [UART2_BOARD_TX] =      {GPIOA, 2, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM},
+    [UART2_BOARD_RX] =      {GPIOA, 3, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM},
+    [IR_RECEIVER] =         {GPIOA, 15, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM},
+    [ADC123_CHANNEL10] =    {GPIOC, 0, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [ADC123_CHANNEL11] =    {GPIOC, 1, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [ADC123_CHANNEL12] =    {GPIOC, 2, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [ADC123_CHANNEL13] =    {GPIOC, 3, GPIO_MODE_ANALOG, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [I2C2_SCL] =            {GPIOB, 10, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH},
+    [I2C2_SDA] =            {GPIOB, 11, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH},
+    [VL53L0X_XSHUT] =       {GPIOA, 5, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
 };
 
 /* Mapping pin numbers to their corresponding MODE register as a 2D array.
@@ -125,7 +125,7 @@ static const uint16_t gpio_odr_register_bit[] = {
 
 /* Function to call other gpio setting helper functions. */
 void gpio_configure_pin(gpio_pin_names_e pin_name, gpio_mode_e mode,
-			gpio_alternate_function_e af, gpio_resistor_e resistor, gpio_otype_e otype)
+			gpio_alternate_function_e af, gpio_resistor_e resistor, gpio_otype_e otype, gpio_speed_e speed)
 {
     gpio_mode_set(pin_name, mode);
     if (mode == GPIO_MODE_ALTERNATE) {
@@ -133,6 +133,7 @@ void gpio_configure_pin(gpio_pin_names_e pin_name, gpio_mode_e mode,
     }
     gpio_resistor_set(pin_name, resistor);
     gpio_otype_set(pin_name, otype);
+    gpio_speed_set(pin_name, speed);
 }
 
 /* Make all the incoming parameters constants because they should be read only.
@@ -142,7 +143,8 @@ bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
 			 const uint8_t expected_pin_number,
 			 const gpio_mode_e expected_mode,
 			 const gpio_resistor_e expected_resistor,
-                         const gpio_otype_e expected_otype)
+             const gpio_otype_e expected_otype,
+             const gpio_speed_e expected_speed)
 {
     const gpio_pin_t test_pin = gpio_board_pins[pin_to_check];
 
@@ -150,7 +152,8 @@ bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
             (test_pin.pin_number == expected_pin_number) &&
             (test_pin.mode == expected_mode) &&
             (test_pin.resistor == expected_resistor) &&
-            (test_pin.otype == expected_otype));
+            (test_pin.otype == expected_otype) &&
+            (test_pin.speed == expected_speed));
 }
 
 void gpio_mode_set(gpio_pin_names_e pin_name, gpio_mode_e desired_mode)
@@ -239,6 +242,28 @@ void gpio_otype_set(gpio_pin_names_e pin_name, gpio_otype_e otype)
             break;
     }
     gpio_board_pins[pin_name].otype = otype;
+}
+
+/* Each pin is a 2 bit-field so multiply by pin_number * 2 to get its position. */
+void gpio_speed_set(gpio_pin_names_e pin_name, gpio_speed_e speed)
+{
+    gpio_pin_t pin = gpio_board_pins[pin_name];
+
+    switch (speed) {
+        case GPIO_SPEED_LOW:
+            pin.port->OSPEEDR |= (0 << (pin.pin_number * 2));
+            break;
+        case GPIO_SPEED_MEDIUM:
+            pin.port->OSPEEDR |= (1 << (pin.pin_number * 2));
+            break;
+        case GPIO_SPEED_HIGH:
+            pin.port->OSPEEDR |= (2 << (pin.pin_number * 2));
+            break;
+        case GPIO_SPEED_VERY_HIGH:
+            pin.port->OSPEEDR |= (3 << (pin.pin_number * 2));
+            break;
+    }
+    gpio_board_pins[pin_name].speed = speed;
 }
 
 #if 0

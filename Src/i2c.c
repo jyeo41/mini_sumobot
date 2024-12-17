@@ -61,7 +61,7 @@ void i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* dat
 }
 
 /* Device address is the slave's address. */
-void i2c_write(const uint8_t device_addr, const uint8_t memory_addr, uint8_t data)
+void i2c_write(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* data, uint8_t data_size)
 {
     uint16_t register_read;
 
@@ -80,8 +80,10 @@ void i2c_write(const uint8_t device_addr, const uint8_t memory_addr, uint8_t dat
     I2C2->DR = memory_addr;
     while (!(I2C2->SR1 & I2C_SR1_BTF));
 
-    while (!(I2C2->SR1 & I2C_SR1_TXE));
-    I2C2->DR = data;
+    for (uint8_t i = 0; i < data_size; i++) {
+        while (!(I2C2->SR1 & I2C_SR1_TXE));
+        I2C2->DR = data[i];
+    }
     while (!(I2C2->SR1 & I2C_SR1_BTF));
     I2C2->CR1 |= I2C_CR1_STOP;
 }
@@ -105,10 +107,14 @@ void i2c_initialize(void)
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
     RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
 
-    gpio_configure_pin(I2C2_SCL, GPIO_MODE_ALTERNATE, GPIO_AF4, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN);
-    gpio_configure_pin(I2C2_SDA, GPIO_MODE_ALTERNATE, GPIO_AF4, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN);
-    ASSERT(gpio_config_compare(I2C2_SCL, GPIOB, 10, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN));
-    ASSERT(gpio_config_compare(I2C2_SDA, GPIOB, 11, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_PULLUP, GPIO_OTYPE_OPENDRAIN));
+    gpio_configure_pin(I2C2_SCL, GPIO_MODE_ALTERNATE, GPIO_AF4, GPIO_RESISTOR_DISABLED,
+                       GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH);
+    gpio_configure_pin(I2C2_SDA, GPIO_MODE_ALTERNATE, GPIO_AF4, GPIO_RESISTOR_DISABLED,
+                       GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH);
+    ASSERT(gpio_config_compare(I2C2_SCL, GPIOB, 10, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED,
+                               GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH));
+    ASSERT(gpio_config_compare(I2C2_SDA, GPIOB, 11, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED,
+                               GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH));
 
     /* I2C reset */
     I2C2->CR1 |= I2C_CR1_SWRST;
@@ -136,26 +142,34 @@ void i2c_initialize(void)
 /* Standalone test function to call inside of main, testing to make sure the I2C read and write functions work properly */
 void i2c_test_read_write(void)
 {
-    uint8_t read_i2c = 0;
+    uint8_t read_i2c[4] = {0, 0, 0, 0};
     /* Test value to write to a register in the sensor. */
-    uint8_t write_i2c = 0xFF;
+    uint32_t write_i2c = 0xFF;
 
-    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_SENSOR_ID_REGISTER, &read_i2c, 1);
-    if (read_i2c == I2C_VL53L0X_SENSOR_ID) {
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_SENSOR_ID_REGISTER, read_i2c, 1);
+    if (read_i2c[0] == I2C_VL53L0X_SENSOR_ID) {
             TRACE("Read expected sensor ID (0xEE) from VL53L0X\n");
     } else {
-            TRACE("Read UNexpected sensor ID 0x%X from VL53L0X, expected (0xEE)\n", read_i2c);
+            TRACE("Read UNexpected sensor ID 0x%X from VL53L0X, expected (0xEE)\n", read_i2c[0]);
     }
-    systick_delay_ms(1000);
+    systick_delay_ms(100);
 
     /* "0x01" is one of the registers you can write to for the VL53L0X sensor. */
-    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, write_i2c);
-    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, &read_i2c, 1);
-    if (read_i2c == write_i2c) {
-            TRACE("Wrote expected VL53L0x value 0x%X\n\n", write_i2c);
+    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 1);
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, read_i2c, 1);
+    if (read_i2c[0] == write_i2c) {
+            TRACE("Wrote expected VL53L0x value 0x%X\n", write_i2c);
     } else {
-            TRACE("Wrote unexpected value. Read 0x%X instead of 0x%X\n\n", read_i2c, write_i2c);
+            TRACE("Wrote unexpected value. Read 0x%X instead of 0x%X\n", read_i2c[0], write_i2c);
     }
+    systick_delay_ms(1000);
+    
+    #if 0
+    write_i2c = 0xABCD;
+    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 2);
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&read_i2c, 2);
+    TRACE("Writing 0xABCD, Read 0x%X\n\n", read_i2c);
+    #endif
 }
 
 /* Should handle both cases of Standard and Fast mode, but to keep the function within the scope of my project,

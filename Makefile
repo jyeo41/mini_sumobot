@@ -86,7 +86,7 @@ $(BUILD_DIR):
 
 -include $(DEP_SOURCES)
 
-.PHONY: all clean flash print-% cppcheck docker-clean size pico
+.PHONY: all clean flash print-% cppcheck docker-clean size picocom
 
 all: $(BUILD_DIR)/$(TARGET).elf
 
@@ -145,7 +145,7 @@ docker-clean:
 size: $(BUILD_DIR)/$(TARGET).elf
 	$(ARM_NONE_EABI_BIN)/arm-none-eabi-size $^
 
-pico:
+picocom:
 	@picocom -b 115200 /dev/ttyUSB0
 
 clean:
