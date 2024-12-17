@@ -13,6 +13,7 @@
 #define I2C_VL53L0X_SENSOR_ID                   0xEE
 #define I2C_VL53L0X_SENSOR_ID_REGISTER          0xC0
 #define I2C_VL53L0X_WRITE_REGISTER              0x01
+#define TIMEOUT_COUNT                           UINT16_MAX
 
 /* I2C Bus Specs says max TRise time for standard mode is 1000ns or 1us. Convert it to hertz */
 #define I2C_STANDARD_MODE_SCL_MAX_TRISE_IN_HZ   1000000
@@ -21,28 +22,48 @@
 static bool initialized = false;
 
 static uint32_t i2c_ccr_calculate(const uint32_t apb_clock, const uint32_t desired_scl_clock);
-static void i2c_start_condition(void);
+static i2c_return_error_e i2c_start_condition(void);
 static inline void i2c_stop_condition(void);
 
-static void i2c_device_addr_send(uint8_t device_addr, uint8_t read_write);
-static void i2c_device_addr_send_1byte_rx(uint8_t device_addr);
-static void i2c_data_send(const uint8_t* data, uint8_t data_size);
+static i2c_return_error_e i2c_device_addr_send(uint8_t device_addr, uint8_t read_write);
+static i2c_return_error_e i2c_device_addr_send_1byte_rx(uint8_t device_addr);
+static i2c_return_error_e i2c_data_send(const uint8_t* data, const uint8_t data_size);
 
 
-void i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* read_buffer, const uint8_t data_size)
+i2c_return_error_e i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* read_buffer, const uint8_t data_size)
 {
-
     uint8_t remaining_data = data_size;
+    i2c_return_error_e error = I2C_RETURN_OK;
 
-    i2c_start_condition();
-    i2c_device_addr_send(device_addr, 0);
-    i2c_data_send(&memory_addr, 1);
+    error = i2c_start_condition();
+    if (error != I2C_RETURN_OK) {
+        TRACE("I2C-Read START ERROR: %u\n", error);
+        return error;
+    }
+    error = i2c_device_addr_send(device_addr, 0);
+    if (error != I2C_RETURN_OK) {
+        TRACE("I2C-Read INITIAL DEVICE ADDR SEND ERROR: %u\n", error);
+        return error;
+    }
+    error = i2c_data_send(&memory_addr, 1);
+    if (error != I2C_RETURN_OK) {
+        TRACE("I2C-Read MEMORY ADDR SEND ERROR: %u\n", error);
+        return error;
+    }
     /* Repeated start condition to signal to read from the previous device and memory address sent. */
-    i2c_start_condition();
+    error = i2c_start_condition();
+    if (error != I2C_RETURN_OK) {
+        TRACE("I2C-Read REPEAT START ERROR: %u\n", error);
+        return error;
+    }
 
     /* Special case for reading 1 byte. */
     if (data_size == 1) {
-        i2c_device_addr_send_1byte_rx(device_addr);
+        error = i2c_device_addr_send_1byte_rx(device_addr);
+        if (error != I2C_RETURN_OK) {
+            TRACE("I2C-Read 1BYTE DEVICE ADDR SEND ERROR: %u\n", error);
+            return error;
+        }
         /* Wait until the DR has some data to be read inside of it. */
         while (!(I2C2->SR1 & I2C_SR1_RXNE));
         read_buffer[data_size - remaining_data] = I2C2->DR;
@@ -50,7 +71,11 @@ void i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* rea
     /* Case when reading multiple bytes. */
     } else {
         /* 1 indicates read bit. */
-        i2c_device_addr_send(device_addr, 1);
+        error = i2c_device_addr_send(device_addr, 1);
+        if (error != I2C_RETURN_OK) {
+            TRACE("I2C-Read MULTIBYTE DEVICE ADDR SEND ERROR: %u\n", error);
+            return error;
+        }
         while (remaining_data > 2) {
             while (!(I2C2->SR1 & I2C_SR1_RXNE));
             read_buffer[data_size - remaining_data] = I2C2->DR;
@@ -70,51 +95,38 @@ void i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* rea
         while (!(I2C2->SR1 & I2C_SR1_RXNE));
         read_buffer[data_size - remaining_data] = I2C2->DR;
     }
-
-    #if 0
-    /* Most basic implementation */
-    /* Send the start condition then wait until its acknowledged. */
-    i2c_start_condition();
-
-    /* Send the device address then wait until its acknowledged */
-    I2C2->DR = (device_addr << 1);
-    while (!(I2C2->SR1 & I2C_SR1_ADDR));
-    register_read = I2C2->SR1 | I2C2->SR2;
-
-    while (!(I2C2->SR1 & I2C_SR1_TXE));
-    I2C2->DR = memory_addr;
-    while (!(I2C2->SR1 & I2C_SR1_BTF));
-
-
-    /* Phase 2 */
-    I2C2->CR1 |= I2C_CR1_START;
-    while (!(I2C2->SR1 & I2C_SR1_SB));
-    I2C2->DR = ((device_addr << 1) | 1);
-    while (!(I2C2->SR1 & I2C_SR1_ADDR));
-    // cppcheck-suppress redundantAssignment
-    register_read = I2C2->SR1 | I2C2->SR2;
-    (void)register_read;
-    
-    for (uint8_t i = 0; i < data_size; i++) {
-        if (i + 1 == data_size) {
-            I2C2->CR1 &= ~I2C_CR1_ACK;
-            I2C2->CR1 |= I2C_CR1_STOP;
-        }
-        while (!(I2C2->SR1 & I2C_SR1_RXNE));
-        data[i] = I2C2->DR;
-    }
-    #endif
+    return error;
 }
 
 /* Device address is the slave's address. */
-void i2c_write(const uint8_t device_addr, const uint8_t memory_addr, const uint8_t* data, const uint8_t data_size)
+i2c_return_error_e i2c_write(const uint8_t device_addr, const uint8_t memory_addr, const uint8_t* data, const uint8_t data_size)
 {
+    i2c_return_error_e error = I2C_RETURN_OK;
+
     /* Send the start condition then wait until its acknowledged. */
-    i2c_start_condition();
-    i2c_device_addr_send(device_addr, 0);
-    i2c_data_send(&memory_addr, 1);
-    i2c_data_send(data, data_size);
+    error = i2c_start_condition();
+    if (error != I2C_RETURN_OK) {
+        TRACE("I2C-Write START ERROR: %u\n", error);
+        return error;
+    }
+    error = i2c_device_addr_send(device_addr, 0);
+    if (error != I2C_RETURN_OK) {
+        TRACE("I2C-Write DEVICE ADDR SEND: %u\n", error);
+        return error;
+    }
+    error = i2c_data_send(&memory_addr, 1);
+    if (error != I2C_RETURN_OK) {
+        TRACE("I2C-Write MEMORY ADDR SEND ERROR: %u\n", error);
+        return error;
+    }
+    error = i2c_data_send(data, data_size);
+    if (error != I2C_RETURN_OK) {
+        TRACE("I2C-Write DATA SEND ERROR: %u\n", error);
+        return error;
+    }
     i2c_stop_condition();
+
+    return error;
 }
 
 /* Reference Manual Chapter 27 I2C section 27.3.3 "I2C Master Mode" */
@@ -137,13 +149,13 @@ void i2c_initialize(void)
     RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
 
     gpio_configure_pin(I2C2_SCL, GPIO_MODE_ALTERNATE, GPIO_AF4, GPIO_RESISTOR_DISABLED,
-                       GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH);
+                       GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_LOW);
     gpio_configure_pin(I2C2_SDA, GPIO_MODE_ALTERNATE, GPIO_AF4, GPIO_RESISTOR_DISABLED,
-                       GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH);
+                       GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_LOW);
     ASSERT(gpio_config_compare(I2C2_SCL, GPIOB, 10, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED,
-                               GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH));
+                               GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_LOW));
     ASSERT(gpio_config_compare(I2C2_SDA, GPIOB, 11, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED,
-                               GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_HIGH));
+                               GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_LOW));
 
     /* I2C reset */
     I2C2->CR1 |= I2C_CR1_SWRST;
@@ -192,18 +204,11 @@ void i2c_test_read_write(void)
     } else {
             TRACE("Wrote unexpected value. Read 0x%X instead of 0x%X\n", read_i2c[0], write_i2c);
     }
-
-    /* "0x01" is one of the registers you can write to for the VL53L0X sensor. */
-    #if 0
-    #endif
-    systick_delay_ms(1000);
     
-    #if 0
-    write_i2c = 0xABCD;
-    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 2);
-    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&read_i2c, 2);
+    write_i2c = 0xAABBCCDD;
+    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 4);
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, read_i2c, 4);
     TRACE("Writing 0xABCD, Read 0x%X\n\n", read_i2c);
-    #endif
 }
 
 /* Should handle both cases of Standard and Fast mode, but to keep the function within the scope of my project,
@@ -227,55 +232,99 @@ static uint32_t i2c_ccr_calculate(const uint32_t apb_clock, const uint32_t desir
     return ccr_return & 0xFFF;
 }
 
-static void i2c_start_condition(void)
+static i2c_return_error_e i2c_start_condition(void)
 {
-    I2C2->CR1 |= I2C_CR1_START | I2C_CR1_ACK;
-    while (!(I2C2->SR1 & I2C_SR1_SB));
+    uint16_t timeout_retry = TIMEOUT_COUNT;
+    
+    /* NOTE: IMPORTANT WORKAROUND:
+     * For some odd reason the start condition automatically generates a stop condition randomly when a sequential
+     * write -> read happens in the test function. This is purely random, sometimes it does this after 16 succesful
+     * test function calls, other times it does this back to back. The workaround is to check if the stop bit is set
+     * before calling the start condition every time and if it is, to manually clear it in software and then wait
+     * for the hardware to catch up and clear it as well.
+     */
+    if (I2C2->CR1 & I2C_CR1_STOP) {
+        I2C2->CR1 &= ~(I2C_CR1_STOP);
+    }
+    /* Poll until the hardware clears the STOP bit. */
+    while (I2C2->CR1 & I2C_CR1_STOP);
+
+    I2C2->CR1 |= I2C_CR1_START;
+    while ((!(I2C2->SR1 & I2C_SR1_SB)) && (--timeout_retry));
+    if (timeout_retry == 0) {
+        return I2C_RETURN_TIMEOUT_ERROR;
+    }
+    return (I2C2->SR1 & I2C_SR1_AF) ? I2C_RETURN_ACKNOWLEDGE_FAILURE_ERROR : I2C_RETURN_OK;
 }
 
 /* read_write parameter serves to set 0 or 1 for bit 0 dynamically when sending the device address */
-static void i2c_device_addr_send(uint8_t device_addr, uint8_t read_write)
+static i2c_return_error_e i2c_device_addr_send(uint8_t device_addr, uint8_t read_write)
 {
     uint16_t register_read;
-    
+    uint16_t timeout_retry = TIMEOUT_COUNT;
+
     I2C2->DR = ((device_addr << 1) | read_write);
-    while (!(I2C2->SR1 & I2C_SR1_ADDR));
+    while (!(I2C2->SR1 & I2C_SR1_ADDR) && (--timeout_retry)) {
+        if (I2C2->SR1 & I2C_SR1_BERR) {
+            return I2C_RETURN_BUS_ERROR;
+        }
+    }
+    if (timeout_retry == 0) {
+        return I2C_RETURN_TIMEOUT_ERROR;
+    }
     register_read = I2C2->SR1 | I2C2->SR2;
     (void)register_read;
+    return (I2C2->SR1 & I2C_SR1_AF) ? I2C_RETURN_ACKNOWLEDGE_FAILURE_ERROR : I2C_RETURN_OK;
 }
 
 /* Special case for master receiving 1 byte of data from slave device.
  * The ACK must be disabled BEFORE the ADDR flag is cleared (reading SR1 and SR2)
  *  and a stop condition must be made after waiting for ADDR flag to set. */
-static void i2c_device_addr_send_1byte_rx(uint8_t device_addr)
+static i2c_return_error_e i2c_device_addr_send_1byte_rx(uint8_t device_addr)
 {
     uint16_t register_read;
+    uint16_t timeout_retry = TIMEOUT_COUNT;
 
     /* Shift in 0 to bit 8 to send device address. */
     I2C2->DR = ((device_addr << 1) | 1);
-    while (!(I2C2->SR1 & I2C_SR1_ADDR));
+    while (!(I2C2->SR1 & I2C_SR1_ADDR) && (--timeout_retry)) {
+        if (I2C2->SR1 & I2C_SR1_BERR) {
+            return I2C_RETURN_BUS_ERROR;
+        }
+    }
+    if (timeout_retry == 0) {
+        return I2C_RETURN_TIMEOUT_ERROR;
+    }
     I2C2->CR1 &= ~(I2C_CR1_ACK);
     register_read = I2C2->SR1 | I2C2->SR2;
     i2c_stop_condition();
     (void)register_read;
+    return I2C_RETURN_OK;
 
 }
 
 
 /* Helper function to send data of multiple lengths, usually used to send 1, 2, or 4 bytes of data.
  * Also used to send the memory address of the slave device. */
-static void i2c_data_send(const uint8_t* data, const uint8_t data_size)
+static i2c_return_error_e i2c_data_send(const uint8_t* data, const uint8_t data_size)
 {
     for (uint8_t i = 0; i < data_size; i++) {
-        while (!(I2C2->SR1 & I2C_SR1_TXE));
+        while (!(I2C2->SR1 & I2C_SR1_TXE)) {
+            if (I2C2->SR1 & I2C_SR1_BERR) {
+                return I2C_RETURN_BUS_ERROR;
+            }
+        }
         I2C2->DR = data[i];
     }
     /* Once last byte of data has been sent, need to wait for BTF to set. */
     while (!(I2C2->SR1 & I2C_SR1_BTF));
-
+    return I2C_RETURN_OK;
 }
 
 static inline void i2c_stop_condition(void)
 {
     I2C2->CR1 |= I2C_CR1_STOP;
+    /* Send the stop condition and make sure BUSY flag gets cleared. This means
+     * the stop condition was detected and the flag was cleared by hardware.*/
+    while (!(I2C2->SR2 & I2C_SR2_BUSY));
 }
