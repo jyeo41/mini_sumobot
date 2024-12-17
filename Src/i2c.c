@@ -21,6 +21,12 @@
 static bool initialized = false;
 
 static uint32_t i2c_ccr_calculate(const uint32_t apb_clock, const uint32_t desired_scl_clock);
+static void i2c_start_condition(void);
+static void i2c_stop_condition(void);
+
+static void i2c_device_addr_send(uint8_t device_addr);
+static void i2c_data_send(uint8_t* data, uint8_t data_size);
+
 
 void i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* data, uint8_t data_size)
 {
@@ -28,8 +34,7 @@ void i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* dat
 
     /* Most basic implementation */
     /* Send the start condition then wait until its acknowledged. */
-    I2C2->CR1 |= I2C_CR1_START;
-    while (!(I2C2->SR1 & I2C_SR1_SB));
+    i2c_start_condition();
 
     /* Send the device address then wait until its acknowledged */
     I2C2->DR = (device_addr << 1);
@@ -63,29 +68,16 @@ void i2c_read(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* dat
 /* Device address is the slave's address. */
 void i2c_write(const uint8_t device_addr, const uint8_t memory_addr, uint8_t* data, uint8_t data_size)
 {
-    uint16_t register_read;
-
-    /* Most basic implementation */
     /* Send the start condition then wait until its acknowledged. */
-    I2C2->CR1 |= I2C_CR1_START;
-    while (!(I2C2->SR1 & I2C_SR1_SB));
-
-    /* Send the device address then wait until its acknowledged */
-    I2C2->DR = (device_addr << 1);
-    while (!(I2C2->SR1 & I2C_SR1_ADDR));
-    register_read = I2C2->SR1 | I2C2->SR2;
-    (void) register_read;
+    i2c_start_condition();
+    i2c_device_addr_send(device_addr);
 
     while (!(I2C2->SR1 & I2C_SR1_TXE));
     I2C2->DR = memory_addr;
     while (!(I2C2->SR1 & I2C_SR1_BTF));
-
-    for (uint8_t i = 0; i < data_size; i++) {
-        while (!(I2C2->SR1 & I2C_SR1_TXE));
-        I2C2->DR = data[i];
-    }
-    while (!(I2C2->SR1 & I2C_SR1_BTF));
-    I2C2->CR1 |= I2C_CR1_STOP;
+    
+    i2c_data_send(data, data_size);
+    i2c_stop_condition();
 }
 
 /* Reference Manual Chapter 27 I2C section 27.3.3 "I2C Master Mode" */
@@ -152,7 +144,6 @@ void i2c_test_read_write(void)
     } else {
             TRACE("Read UNexpected sensor ID 0x%X from VL53L0X, expected (0xEE)\n", read_i2c[0]);
     }
-    systick_delay_ms(100);
 
     /* "0x01" is one of the registers you can write to for the VL53L0X sensor. */
     i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 1);
@@ -193,3 +184,36 @@ static uint32_t i2c_ccr_calculate(const uint32_t apb_clock, const uint32_t desir
     return ccr_return & 0xFFF;
 }
 
+static void i2c_start_condition(void)
+{
+    I2C2->CR1 |= I2C_CR1_START;
+    while (!(I2C2->SR1 & I2C_SR1_SB));
+}
+
+/* bit 8 of the device_addr will always be 0 since we have to write the address from master. */
+static void i2c_device_addr_send(uint8_t device_addr)
+{
+    uint16_t register_read;
+    
+    I2C2->DR = (device_addr << 1);
+    while (!(I2C2->SR1 & I2C_SR1_ADDR));
+    register_read = I2C2->SR1 | I2C2->SR2;
+    (void)register_read;
+}
+
+/* Can send a variable number of bytes, must be at least 1 byte*/
+static void i2c_data_send(uint8_t* data, uint8_t data_size)
+{
+    for (uint8_t i = 0; i < data_size; i++) {
+        while (!(I2C2->SR1 & I2C_SR1_TXE));
+        I2C2->DR |= data[i];
+    }
+    /* Once last byte of data has been sent, need to wait for BTF to set. */
+    while (!(I2C2->SR1 & I2C_SR1_BTF));
+
+}
+
+static void i2c_stop_condition(void)
+{
+    I2C2->CR1 |= I2C_CR1_STOP;
+}
