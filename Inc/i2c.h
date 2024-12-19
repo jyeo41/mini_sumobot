@@ -1,6 +1,7 @@
 #ifndef I2C_H_
 #define I2C_H_
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum {
 	I2C_RETURN_OK                           = 0,

@@ -18,6 +18,12 @@
 /* I2C Bus Specs says max TRise time for standard mode is 1000ns or 1us. Convert it to hertz */
 #define I2C_STANDARD_MODE_SCL_MAX_TRISE_IN_HZ   1000000
 
+typedef union {
+    uint8_t byte;
+    uint16_t half_word;
+    uint32_t word;
+}i2c_data;
+
 
 static bool initialized = false;
 
@@ -98,7 +104,12 @@ i2c_return_error_e i2c_read(const uint8_t device_addr, const uint8_t memory_addr
     return error;
 }
 
-/* Device address is the slave's address. */
+/* Device address is the slave's address.
+ * Running into an issue where bus seems to hang if master tries to read immediately after a write because
+ * of the stop condition being sent by the write function. I presume this is because the stop condition is
+ * being sent when it should be a repeated start.
+ *
+ * The repeated start flag should be set to true if an i2c_read() follows immediately after to the same slave device. */
 i2c_return_error_e i2c_write(const uint8_t device_addr, const uint8_t memory_addr, const uint8_t* data, const uint8_t data_size)
 {
     i2c_return_error_e error = I2C_RETURN_OK;
@@ -124,8 +135,8 @@ i2c_return_error_e i2c_write(const uint8_t device_addr, const uint8_t memory_add
         TRACE("I2C-Write DATA SEND ERROR: %u\n", error);
         return error;
     }
-    i2c_stop_condition();
 
+    i2c_stop_condition();
     return error;
 }
 
@@ -146,7 +157,6 @@ void i2c_initialize(void)
      */
     ASSERT(!initialized);
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
-    RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
 
     gpio_configure_pin(I2C2_SCL, GPIO_MODE_ALTERNATE, GPIO_AF4, GPIO_RESISTOR_DISABLED,
                        GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_LOW);
@@ -157,6 +167,7 @@ void i2c_initialize(void)
     ASSERT(gpio_config_compare(I2C2_SDA, GPIOB, 11, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED,
                                GPIO_OTYPE_OPENDRAIN, GPIO_SPEED_LOW));
 
+    RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
     /* I2C reset */
     I2C2->CR1 |= I2C_CR1_SWRST;
     I2C2->CR1 &= ~(I2C_CR1_SWRST);
@@ -183,32 +194,54 @@ void i2c_initialize(void)
 /* Standalone test function to call inside of main, testing to make sure the I2C read and write functions work properly */
 void i2c_test_read_write(void)
 {
-    /* Buffer to read data values. */
-    uint8_t read_i2c[4] = {0, 0, 0, 0};
+    i2c_data data_read;
 
     /* Test value to write to a register in the sensor. */
     uint32_t write_i2c = 0xFF;
+    uint32_t write_byte = 0xCC;
 
-    /* Test single byte write and read. */
-    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_SENSOR_ID_REGISTER, read_i2c, 1);
-    if (read_i2c[0] == I2C_VL53L0X_SENSOR_ID) {
+    /* Test single byte write and read separately. */
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_SENSOR_ID_REGISTER, (uint8_t*)&data_read.byte, 1);
+    if (data_read.byte == I2C_VL53L0X_SENSOR_ID) {
             TRACE("Read expected sensor ID (0xEE) from VL53L0X\n");
     } else {
-            TRACE("Read UNexpected sensor ID 0x%X from VL53L0X, expected (0xEE)\n", read_i2c[0]);
+            TRACE("Read UNexpected sensor ID 0x%X from VL53L0X, expected (0xEE)\n", data_read.byte);
+    }
+    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_byte, 1);
+    TRACE("Wrote value 0x%X to VL53L0X register 0x%X\n", write_byte, I2C_VL53L0X_WRITE_REGISTER);
+    
+    systick_delay_ms(5);
+    /* Test sequential single-byte write and read. */
+    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 1);
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&data_read.byte, 1);
+    if (data_read.byte == write_i2c) {
+            TRACE("Wrote expected VL53L0x value 0x%X\n\n", write_i2c);
+    } else {
+            TRACE("Wrote unexpected value. Read 0x%X instead of 0x%X\n\n", data_read.byte, write_i2c);
     }
 
-    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 1);
-    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, read_i2c, 1);
-    if (read_i2c[0] == write_i2c) {
-            TRACE("Wrote expected VL53L0x value 0x%X\n", write_i2c);
-    } else {
-            TRACE("Wrote unexpected value. Read 0x%X instead of 0x%X\n", read_i2c[0], write_i2c);
-    }
+    /* Test 2-byte write and read. */
+    write_i2c = 0xEEEE;
     
-    write_i2c = 0xAABBCCDD;
+    TRACE("Testing 2-BYTE READ AND WRITE\n");
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&data_read.half_word, 2);
+    TRACE("Read 2-byte value 0x%X\n", data_read.half_word);
+    i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 2);
+    TRACE("Wrote 2-byte value 0x%X\n", write_i2c);
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&data_read.half_word, 2);
+    TRACE("Read 2-byte value 0x%X\n\n", data_read.half_word);
+
+    systick_delay_ms(5);
+    /* Test 4-byte write and read. */
+    write_i2c = 0xBBBBBBBB;
+    
+    TRACE("Testing 4-BYTE READ AND WRITE\n");
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&data_read.word, 4);
+    TRACE("Read 4-byte value 0x%X\n", data_read.word);
     i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 4);
-    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, read_i2c, 4);
-    TRACE("Writing 0xABCD, Read 0x%X\n\n", read_i2c);
+    TRACE("Wrote 4-byte value 0x%X\n", write_i2c);
+    i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&data_read.word, 4);
+    TRACE("Read 4-byte value 0x%X\n\n", data_read.word);
 }
 
 /* Should handle both cases of Standard and Fast mode, but to keep the function within the scope of my project,
@@ -249,7 +282,7 @@ static i2c_return_error_e i2c_start_condition(void)
     /* Poll until the hardware clears the STOP bit. */
     while (I2C2->CR1 & I2C_CR1_STOP);
 
-    I2C2->CR1 |= I2C_CR1_START;
+    I2C2->CR1 |= I2C_CR1_START | I2C_CR1_ACK;
     while ((!(I2C2->SR1 & I2C_SR1_SB)) && (--timeout_retry));
     if (timeout_retry == 0) {
         return I2C_RETURN_TIMEOUT_ERROR;
@@ -300,9 +333,7 @@ static i2c_return_error_e i2c_device_addr_send_1byte_rx(uint8_t device_addr)
     i2c_stop_condition();
     (void)register_read;
     return I2C_RETURN_OK;
-
 }
-
 
 /* Helper function to send data of multiple lengths, usually used to send 1, 2, or 4 bytes of data.
  * Also used to send the memory address of the slave device. */
@@ -324,7 +355,8 @@ static i2c_return_error_e i2c_data_send(const uint8_t* data, const uint8_t data_
 static inline void i2c_stop_condition(void)
 {
     I2C2->CR1 |= I2C_CR1_STOP;
-    /* Send the stop condition and make sure BUSY flag gets cleared. This means
-     * the stop condition was detected and the flag was cleared by hardware.*/
-    while (!(I2C2->SR2 & I2C_SR2_BUSY));
+    /* Send the stop condition and make sure BUSY flag gets cleared. 
+     * 1 means communication going on the bus, 0 means bus is idle. So we must wait
+     * while the flag is 1 and hardware should clear it to 0. */
+    while (I2C2->SR2 & I2C_SR2_BUSY);
 }
