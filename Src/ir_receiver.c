@@ -96,7 +96,10 @@ void ir_receiver_initialize(void)
 {
     ASSERT(!ir_receiver_initialized);
 
-    gpio_configure_pin(IR_RECEIVER, GPIO_MODE_ALTERNATE, GPIO_AF1, GPIO_RESISTOR_DISABLED);
+    gpio_configure_pin(IR_RECEIVER, GPIO_MODE_ALTERNATE, GPIO_AF1, GPIO_RESISTOR_DISABLED,
+                       GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM);
+    ASSERT(gpio_config_compare(IR_RECEIVER, GPIOA, 15, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED,
+                               GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM));
     timer_initialize();
 
     ir_receiver_initialized = true;

@@ -17,6 +17,9 @@ typedef enum {
 	ADC123_CHANNEL11,
 	ADC123_CHANNEL12,
 	ADC123_CHANNEL13,
+	I2C2_SCL,
+	I2C2_SDA,
+	VL53L0X_XSHUT,
 }gpio_pin_names_e;
 
 typedef enum {
@@ -56,6 +59,18 @@ typedef enum {
 }gpio_resistor_e;
 
 typedef enum {
+	GPIO_OTYPE_PUSHPULL,
+	GPIO_OTYPE_OPENDRAIN,
+}gpio_otype_e;
+
+typedef enum {
+    GPIO_SPEED_LOW,
+    GPIO_SPEED_MEDIUM,
+    GPIO_SPEED_HIGH,
+    GPIO_SPEED_VERY_HIGH,
+}gpio_speed_e;
+
+typedef enum {
 	GPIO_INTERRUPT_TRIGGER_FALLING,
 	GPIO_INTERRUPT_TRIGGER_RISING,
 }gpio_interrupt_edge_trigger_e;
@@ -79,20 +94,26 @@ typedef struct {
 	const uint8_t pin_number;
 	gpio_mode_e mode;
 	gpio_resistor_e resistor;
+	gpio_otype_e otype;
+    gpio_speed_e speed;
 }gpio_pin_t;
 
 void gpio_default_initialize(void);
 void gpio_configure_pin(gpio_pin_names_e pin_name, gpio_mode_e mode,
-			gpio_alternate_function_e af, gpio_resistor_e resistor);
+			gpio_alternate_function_e af, gpio_resistor_e resistor, gpio_otype_e otype, gpio_speed_e speed);
 bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
 			 const GPIO_TypeDef* const expected_port,
 			 const uint8_t expected_pin_number,
 			 const gpio_mode_e expected_mode,
-			 const gpio_resistor_e expected_resistor);
+			 const gpio_resistor_e expected_resistor,
+			 const gpio_otype_e expected_otype,
+             const gpio_speed_e expected_speed);
 
 void gpio_mode_set(gpio_pin_names_e pin_name, gpio_mode_e mode);
 void gpio_alternate_function_set(gpio_pin_names_e pin_name, gpio_alternate_function_e af);
 void gpio_resistor_set(gpio_pin_names_e pin_name, gpio_resistor_e resistor);
+void gpio_speed_set(gpio_pin_names_e pin_name, gpio_speed_e speed);
+void gpio_otype_set(gpio_pin_names_e pin_name, gpio_otype_e otype);
 void gpio_interrupt_set(gpio_pin_names_e pin_name,
 			gpio_interrupt_edge_trigger_e edge_trigger, 
 			IRQn_Type IRQn,
