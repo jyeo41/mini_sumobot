@@ -200,6 +200,7 @@ void i2c_test_read_write(void)
     uint32_t write_i2c = 0xFF;
     uint32_t write_byte = 0xCC;
 
+    TRACE("!!STARTING I2C TESTING!!\n");
     /* Test single byte write and read separately. */
     i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_SENSOR_ID_REGISTER, (uint8_t*)&data_read.byte, 1);
     if (data_read.byte == I2C_VL53L0X_SENSOR_ID) {
@@ -223,6 +224,7 @@ void i2c_test_read_write(void)
     /* Test 2-byte write and read. */
     write_i2c = 0xEEEE;
     
+    systick_delay_ms(10);
     TRACE("Testing 2-BYTE READ AND WRITE\n");
     i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&data_read.half_word, 2);
     TRACE("Read 2-byte value 0x%X\n", data_read.half_word);
@@ -231,11 +233,13 @@ void i2c_test_read_write(void)
     i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&data_read.half_word, 2);
     TRACE("Read 2-byte value 0x%X\n\n", data_read.half_word);
 
+    /* Small delay so UART can print in time. */
     systick_delay_ms(5);
     /* Test 4-byte write and read. */
     write_i2c = 0xBBBBBBBB;
     
     TRACE("Testing 4-BYTE READ AND WRITE\n");
+    systick_delay_ms(5);
     i2c_read(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&data_read.word, 4);
     TRACE("Read 4-byte value 0x%X\n", data_read.word);
     i2c_write(I2C_VL53L0X_DEVICE_ADDRESS, I2C_VL53L0X_WRITE_REGISTER, (uint8_t*)&write_i2c, 4);

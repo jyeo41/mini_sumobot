@@ -20,6 +20,6 @@ int main(void)
 	while (1) {
 		i2c_test_read_write();
 		led_toggle(LED_GREEN);
-        systick_delay_ms(1000);
+        systick_delay_ms(2000);
 	}
 }
