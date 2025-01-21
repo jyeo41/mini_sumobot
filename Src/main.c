@@ -17,11 +17,11 @@ int main(void)
 	uart2_initialize();
 	ir_receiver_initialize();
 	edge_detect_initialize();
-    i2c_initialize();
+    vl53l0x_initialize();
 
 	while (1) {
-        vl53l0x_test();
+        i2c_test_read_write();
 		led_toggle(LED_GREEN);
-        systick_delay_ms(1000);
+        systick_delay_ms(2000);
 	}
 }
