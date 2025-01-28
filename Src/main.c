@@ -7,7 +7,6 @@
 #include "ir_receiver.h"
 #include "edge_detect.h"
 #include "vl53l0x.h"
-#include "i2c.h"
 
 
 int main(void)
@@ -20,8 +19,8 @@ int main(void)
     vl53l0x_initialize();
 
 	while (1) {
-        i2c_test_read_write();
+        vl53l0x_test_range();
 		led_toggle(LED_GREEN);
-        systick_delay_ms(2000);
+        systick_delay_ms(100);
 	}
 }

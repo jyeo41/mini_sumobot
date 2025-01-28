@@ -192,6 +192,7 @@ void i2c_initialize(void)
 }
 
 /* Standalone test function to call inside of main, testing to make sure the I2C read and write functions work properly */
+//cppcheck-suppress unusedFunction
 void i2c_test_read_write(void)
 {
     i2c_data data_read;

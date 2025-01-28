@@ -55,10 +55,6 @@ static bool static_initialized = false;
 static bool default_tuning_initialized = false;
 static bool interrupt_enable_initialized = false;
 static bool ref_calibration_initialized = false;
-#if 0
-#endif
-#if 0
-#endif
 
 static vl53l0x_return_error_e vl53l0x_check_id(uint8_t device_address);
 static vl53l0x_return_error_e vl53l0x_data_initialize(void);
@@ -69,8 +65,6 @@ static vl53l0x_return_error_e vl53l0x_interrupt_enable(void);
 static vl53l0x_return_error_e vl53l0x_set_sequence_steps_enabled(uint8_t sequence_step);
 static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration_type_e calibration);
 static vl53l0x_return_error_e vl53l0x_ref_calibration_initialize(void);
-#if 0
-#endif
 
 
 /* Three things we must do when we initialize this sensor.
@@ -94,12 +88,97 @@ void vl53l0x_initialize(void)
     device_initialized = true;
 }
 
-#if 0
-void vl53l0x_test(void)
+void vl53l0x_test_range(void)
 {
-}
-#endif
+    uint16_t range = 0;
+    vl53l0x_return_error_e return_error = VL53L0X_RETURN_OK;
 
+    return_error = vl53l0x_read_range_singular(&range);
+    if (return_error != VL53L0X_RETURN_OK) {
+        TRACE("Range measurement failed (error %u)\n", return_error);
+    } else {
+        if (range != VL53L0X_OUT_OF_RANGE) {
+            TRACE("Range %u mm\n", range);
+        } else {
+            TRACE("OUT OF RANGE\n");
+        }
+    }
+}
+
+vl53l0x_return_error_e vl53l0x_read_range_singular(uint16_t* range)
+{
+    uint8_t data = 0x01;
+    vl53l0x_return_error_e return_error = VL53L0X_RETURN_OK;
+
+    const vl53l0x_addr_data_pair sysrange_register_pairs[] = {
+        {0x80, 0x01},
+        {0xFF, 0x01},
+        {0x00, 0x00},
+        {0x00, 0x01},
+        {0xFF, 0x00},
+        {0x80, 0x00},
+    };
+
+    return_error = vl53l0x_write_addr_data_pairs(sysrange_register_pairs, 3);
+    if (return_error != VL53L0X_RETURN_OK) {
+        return return_error;
+    }
+
+    if (i2c_write(VL53L0X_DEVICE_ADDRESS, 0x91, &stop_variable, 1) != I2C_RETURN_OK) {
+        return VL53L0X_RETURN_I2C_ERROR;
+    }
+
+    return_error = vl53l0x_write_addr_data_pairs(sysrange_register_pairs + 3,
+                                                ((sizeof(sysrange_register_pairs)/sizeof(sysrange_register_pairs[0])) - 3));
+    if (return_error != VL53L0X_RETURN_OK) {
+        return return_error;
+    }
+    
+    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSRANGE_START_REGISTER, &data, 1)
+        != I2C_RETURN_OK) {
+        return VL53L0X_RETURN_I2C_ERROR;
+    }
+
+    uint8_t sysrange_start = 0;
+    i2c_return_error_e i2c_return_result = I2C_RETURN_OK;
+
+    do {
+        i2c_return_result = i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSRANGE_START_REGISTER, &sysrange_start, 1);
+    } while ((i2c_return_result == I2C_RETURN_OK) && (sysrange_start & 0x01));
+    if (i2c_return_result != I2C_RETURN_OK) {
+        return VL53L0X_RETURN_I2C_ERROR;
+    }
+
+    uint8_t interrupt_status = 0;
+
+    do {
+        i2c_return_result = i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_RESULT_INTERRUPT_STATUS_REGISTER, &interrupt_status, 1);
+    } while ((i2c_return_result == I2C_RETURN_OK) && ((interrupt_status & 0x07) == 0));
+    if (i2c_return_result != I2C_RETURN_OK) {
+        return VL53L0X_RETURN_I2C_ERROR;
+    }
+
+    uint8_t range_buffer[2];
+    if (i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_RESULT_RANGE_STATUS_REGISTER + 10, range_buffer, 2)
+        != I2C_RETURN_OK) {
+        return VL53L0X_RETURN_I2C_ERROR;
+    }
+    
+    /* Combine the bytes to correct the order of endianness. */
+    *range = ((uint16_t)range_buffer[0] << 8) | range_buffer[1];
+
+    if (i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSTEM_INTERRUPT_CLEAR_REGISTER, &data, 1)
+        != I2C_RETURN_OK) {
+        return VL53L0X_RETURN_I2C_ERROR;
+    }
+
+    /* 8190 or 8191 may be returned when obstacle is out of range. */
+    if (*range == 8190 || *range == 8191) {
+        *range = VL53L0X_OUT_OF_RANGE;
+    }
+    
+    return return_error;
+}
 
 static vl53l0x_return_error_e vl53l0x_check_id(uint8_t device_address)
 {
@@ -269,8 +348,6 @@ static vl53l0x_return_error_e vl53l0x_set_sequence_steps_enabled(uint8_t sequenc
     }
     return VL53L0X_RETURN_OK;
 }
-#if 0
-#endif
 
 static vl53l0x_return_error_e vl53l0x_ref_calibration_initialize(void)
 {
@@ -350,10 +427,6 @@ static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration
     return VL53L0X_RETURN_OK;
 }
 
-#if 0
-#endif
-
-
 static vl53l0x_return_error_e vl53l0x_write_addr_data_pairs(const vl53l0x_addr_data_pair addr_data_regs[], uint8_t length)
 {
     for (uint8_t i = 0; i < length; i++) {
@@ -364,5 +437,3 @@ static vl53l0x_return_error_e vl53l0x_write_addr_data_pairs(const vl53l0x_addr_d
     }
     return VL53L0X_RETURN_OK;
 }
-#if 0
-#endif
