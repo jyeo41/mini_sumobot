@@ -2,6 +2,7 @@
 #include "i2c.h"
 #include "trace.h"
 #include "assert_handler.h"
+#include "gpio.h"
 #include <stdint.h>
 
 /* Most of the code for this driver was adapted from Artful Bytes blog post on the VL53L0X sensor.
@@ -48,6 +49,20 @@ typedef struct {
     uint8_t data;
 }vl53l0x_addr_data_pair;
 
+
+#if 0
+typedef struct {
+    uint8_t addr;
+    gpio_pin_names_e gpio_xshut;
+}vl53l0x_addr_config_t;
+
+static const vl53l0x_addr_config_t vl53l0x_addr_config[] = {
+    [VL53L0X_INDEX_MIDDLE] = { .addr = 0x30, .gpio_xshut = VL53L0X_XSHUT_MIDDLE},
+    [VL53L0X_INDEX_LEFT] = { .addr = 0x31, .gpio_xshut = VL53L0X_XSHUT_LEFT},
+    [VL53L0X_INDEX_RIGHT] = { .addr = 0x32, .gpio_xshut = VL53L0X_XSHUT_RIGHT},
+};
+#endif
+
 static bool device_initialized = false;
 static uint8_t stop_variable = 0;
 static bool data_initialized = false;
@@ -55,6 +70,7 @@ static bool static_initialized = false;
 static bool default_tuning_initialized = false;
 static bool interrupt_enable_initialized = false;
 static bool ref_calibration_initialized = false;
+static uint8_t current_slave_address = VL53L0X_DEVICE_ADDRESS;
 
 static vl53l0x_return_error_e vl53l0x_check_id(uint8_t device_address);
 static vl53l0x_return_error_e vl53l0x_data_initialize(void);
@@ -65,6 +81,7 @@ static vl53l0x_return_error_e vl53l0x_interrupt_enable(void);
 static vl53l0x_return_error_e vl53l0x_set_sequence_steps_enabled(uint8_t sequence_step);
 static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration_type_e calibration);
 static vl53l0x_return_error_e vl53l0x_ref_calibration_initialize(void);
+static void vl53l0x_set_slave_address(uint8_t address);
 
 
 /* Three things we must do when we initialize this sensor.
@@ -73,10 +90,11 @@ static vl53l0x_return_error_e vl53l0x_ref_calibration_initialize(void);
  * Third, we must do "static initialization". */
 void vl53l0x_initialize(void)
 {
+    vl53l0x_set_slave_address(VL53L0X_DEVICE_ADDRESS);
     ASSERT(!device_initialized);
     i2c_initialize();
     TRACE("I2C INITIALIZED SUCCESS!\n");
-    vl53l0x_check_id(VL53L0X_DEVICE_ADDRESS);
+    vl53l0x_check_id(current_slave_address);
     TRACE("VL53L0X CHECK ID SUCCESS!\n");
     vl53l0x_data_initialize();
     TRACE("VL53L0X DATA INITIALIZE SUCCESS!\n");
@@ -124,7 +142,7 @@ vl53l0x_return_error_e vl53l0x_read_range_singular(uint16_t* range)
         return return_error;
     }
 
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, 0x91, &stop_variable, 1) != I2C_RETURN_OK) {
+    if (i2c_write(current_slave_address, 0x91, &stop_variable, 1) != I2C_RETURN_OK) {
         return VL53L0X_RETURN_I2C_ERROR;
     }
 
@@ -134,7 +152,7 @@ vl53l0x_return_error_e vl53l0x_read_range_singular(uint16_t* range)
         return return_error;
     }
     
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSRANGE_START_REGISTER, &data, 1)
+    if (i2c_write(current_slave_address, VL53L0X_SYSRANGE_START_REGISTER, &data, 1)
         != I2C_RETURN_OK) {
         return VL53L0X_RETURN_I2C_ERROR;
     }
@@ -143,7 +161,7 @@ vl53l0x_return_error_e vl53l0x_read_range_singular(uint16_t* range)
     i2c_return_error_e i2c_return_result = I2C_RETURN_OK;
 
     do {
-        i2c_return_result = i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSRANGE_START_REGISTER, &sysrange_start, 1);
+        i2c_return_result = i2c_read(current_slave_address, VL53L0X_SYSRANGE_START_REGISTER, &sysrange_start, 1);
     } while ((i2c_return_result == I2C_RETURN_OK) && (sysrange_start & 0x01));
     if (i2c_return_result != I2C_RETURN_OK) {
         return VL53L0X_RETURN_I2C_ERROR;
@@ -152,14 +170,14 @@ vl53l0x_return_error_e vl53l0x_read_range_singular(uint16_t* range)
     uint8_t interrupt_status = 0;
 
     do {
-        i2c_return_result = i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_RESULT_INTERRUPT_STATUS_REGISTER, &interrupt_status, 1);
+        i2c_return_result = i2c_read(current_slave_address, VL53L0X_RESULT_INTERRUPT_STATUS_REGISTER, &interrupt_status, 1);
     } while ((i2c_return_result == I2C_RETURN_OK) && ((interrupt_status & 0x07) == 0));
     if (i2c_return_result != I2C_RETURN_OK) {
         return VL53L0X_RETURN_I2C_ERROR;
     }
 
     uint8_t range_buffer[2];
-    if (i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_RESULT_RANGE_STATUS_REGISTER + 10, range_buffer, 2)
+    if (i2c_read(current_slave_address, VL53L0X_RESULT_RANGE_STATUS_REGISTER + 10, range_buffer, 2)
         != I2C_RETURN_OK) {
         return VL53L0X_RETURN_I2C_ERROR;
     }
@@ -167,7 +185,7 @@ vl53l0x_return_error_e vl53l0x_read_range_singular(uint16_t* range)
     /* Combine the bytes to correct the order of endianness. */
     *range = ((uint16_t)range_buffer[0] << 8) | range_buffer[1];
 
-    if (i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSTEM_INTERRUPT_CLEAR_REGISTER, &data, 1)
+    if (i2c_read(current_slave_address, VL53L0X_SYSTEM_INTERRUPT_CLEAR_REGISTER, &data, 1)
         != I2C_RETURN_OK) {
         return VL53L0X_RETURN_I2C_ERROR;
     }
@@ -199,14 +217,14 @@ static vl53l0x_return_error_e vl53l0x_data_initialize(void)
 
     /* Set 2v8 mode. Can also set 1v8 mode, but my breakout board uses 2v8. */
     uint8_t vhv_config_scl_sda = 0;
-    if (i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV_REGISTER, &vhv_config_scl_sda, 1)
+    if (i2c_read(current_slave_address, VL53L0X_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV_REGISTER, &vhv_config_scl_sda, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X DATA INITIALIZE FAILED: READ VHV CONFIG PAD SCL SDA EXTSUP HV\n");
         return VL53L0X_RETURN_I2C_ERROR;
     }
 
     vhv_config_scl_sda |= 0x01;
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV_REGISTER, &vhv_config_scl_sda, 1)
+    if (i2c_write(current_slave_address, VL53L0X_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV_REGISTER, &vhv_config_scl_sda, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X DATA INITIALIZE FAILED: WRITE VHV CONFIG PAD SCL SDA EXTSUP HV\n");
         return VL53L0X_RETURN_I2C_ERROR;
@@ -214,7 +232,7 @@ static vl53l0x_return_error_e vl53l0x_data_initialize(void)
 
     /* Writing 0 to 0x88 sets it to standard mode for I2C. 
      * Writing to this register with a 0 multiple times seems to lock up the slave device. */
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, 0x88, 0x00, 1)
+    if (i2c_write(current_slave_address, 0x88, 0x00, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X DATA INITIALIZE FAILED: SET STANDARD MODE\n"); 
         return VL53L0X_RETURN_I2C_ERROR;
@@ -234,7 +252,7 @@ static vl53l0x_return_error_e vl53l0x_data_initialize(void)
     }
 
     /* Need to retrieve the stop variable for each sensor(?) */
-    if (i2c_read(VL53L0X_DEVICE_ADDRESS, 0x91, &stop_variable, 1) != I2C_RETURN_OK) {
+    if (i2c_read(current_slave_address, 0x91, &stop_variable, 1) != I2C_RETURN_OK) {
         TRACE("VL53L0X DATA INITIALIZE FAILED: READ STOP VARIABLE\n");
         return VL53L0X_RETURN_I2C_ERROR;
     }
@@ -307,7 +325,7 @@ static vl53l0x_return_error_e vl53l0x_interrupt_enable(void)
 
     ASSERT(!interrupt_enable_initialized);
     /* Interrupt on new sample ready. */
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSTEM_INTERRUPT_CONFIG_GPIO_REGISTER, &data, 1)
+    if (i2c_write(current_slave_address, VL53L0X_SYSTEM_INTERRUPT_CONFIG_GPIO_REGISTER, &data, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X MODULE FAILED: WRITE TO GPIO_HV_MUX_ACTIVE_HIGH_REGISTER.\n");
         return VL53L0X_RETURN_I2C_ERROR;
@@ -315,21 +333,21 @@ static vl53l0x_return_error_e vl53l0x_interrupt_enable(void)
 
     /* Set to active low because the pin is pulled up by default on the breakout board. */
     uint8_t gpio_hv_mux_active_high = 0;
-    if (i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_GPIO_HV_MUX_ACTIVE_HIGH_REGISTER, &gpio_hv_mux_active_high, 1)
+    if (i2c_read(current_slave_address, VL53L0X_GPIO_HV_MUX_ACTIVE_HIGH_REGISTER, &gpio_hv_mux_active_high, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X MODULE FAILED: READING FROM GPIO_HV_MUX_ACTIVE_HIGH_REGISTER.\n");
         return VL53L0X_RETURN_I2C_ERROR;
     }
 
     gpio_hv_mux_active_high &= ~(0x10);
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_GPIO_HV_MUX_ACTIVE_HIGH_REGISTER, &gpio_hv_mux_active_high, 1)
+    if (i2c_write(current_slave_address, VL53L0X_GPIO_HV_MUX_ACTIVE_HIGH_REGISTER, &gpio_hv_mux_active_high, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X MODULE FAILED: RE-WRITE TO GPIO_HV_MUX_ACTIVE_HIGH_REGISTER.\n");
         return VL53L0X_RETURN_I2C_ERROR;
     }
 
     uint8_t clear_interrupt = 0x01;
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSTEM_INTERRUPT_CLEAR_REGISTER, &clear_interrupt, 1)
+    if (i2c_write(current_slave_address, VL53L0X_SYSTEM_INTERRUPT_CLEAR_REGISTER, &clear_interrupt, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X MODULE FAILED: WRITE TO SYSTEM_INTERRUPT_CLEAR_REGISTER.\n");
         return VL53L0X_RETURN_I2C_ERROR;
@@ -341,7 +359,7 @@ static vl53l0x_return_error_e vl53l0x_interrupt_enable(void)
 
 static vl53l0x_return_error_e vl53l0x_set_sequence_steps_enabled(uint8_t sequence_step)
 {
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSTEM_SEQUENCE_CONFIG_REGISTER, &sequence_step, 1)
+    if (i2c_write(current_slave_address, VL53L0X_SYSTEM_SEQUENCE_CONFIG_REGISTER, &sequence_step, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X MODULE FAILED: SETTING SEQUENCE STEPS.\n");
         return VL53L0X_RETURN_I2C_ERROR;
@@ -387,13 +405,13 @@ static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration
             break; 
     }
 
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSTEM_SEQUENCE_CONFIG_REGISTER, &sequence_config, 1)
+    if (i2c_write(current_slave_address, VL53L0X_SYSTEM_SEQUENCE_CONFIG_REGISTER, &sequence_config, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X SINGLE REF CALIBRATION FAILED: SYS SEQ CONFIG REGISTER\n");
         return VL53L0X_RETURN_I2C_ERROR;
     }
 
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSRANGE_START_REGISTER, &sysrange_start, 1)
+    if (i2c_write(current_slave_address, VL53L0X_SYSRANGE_START_REGISTER, &sysrange_start, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X SINGLE REF CALIBRATION FAILED: SYSRANGE START REGISTER\n");
         return VL53L0X_RETURN_I2C_ERROR;
@@ -404,7 +422,7 @@ static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration
     i2c_return_error_e i2c_return_result = I2C_RETURN_OK;
     
     do {
-        i2c_return_result = i2c_read(VL53L0X_DEVICE_ADDRESS, VL53L0X_RESULT_INTERRUPT_STATUS_REGISTER,
+        i2c_return_result = i2c_read(current_slave_address, VL53L0X_RESULT_INTERRUPT_STATUS_REGISTER,
                                      &interrupt_status, 1);
     } while ((i2c_return_result == I2C_RETURN_OK) && ((interrupt_status & 0x07) == 0));
     if (i2c_return_result != I2C_RETURN_OK) {
@@ -413,13 +431,13 @@ static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration
     }
 
 
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSTEM_INTERRUPT_CLEAR_REGISTER, (uint8_t*)0x01, 1)
+    if (i2c_write(current_slave_address, VL53L0X_SYSTEM_INTERRUPT_CLEAR_REGISTER, (uint8_t*)0x01, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X SINGLE REF CALIBRATION FAILED: SYSTEM INTERRUPT CLEAR REGISTER\n");
         return VL53L0X_RETURN_I2C_ERROR;
     }
 
-    if (i2c_write(VL53L0X_DEVICE_ADDRESS, VL53L0X_SYSRANGE_START_REGISTER, (uint8_t*)0x00, 1)
+    if (i2c_write(current_slave_address, VL53L0X_SYSRANGE_START_REGISTER, (uint8_t*)0x00, 1)
         != I2C_RETURN_OK) {
         TRACE("VL53L0X SINGLE REF CALIBRATION FAILED: SYSRANGE START REGISTER\n");
     }
@@ -430,10 +448,15 @@ static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration
 static vl53l0x_return_error_e vl53l0x_write_addr_data_pairs(const vl53l0x_addr_data_pair addr_data_regs[], uint8_t length)
 {
     for (uint8_t i = 0; i < length; i++) {
-        if (i2c_write(VL53L0X_DEVICE_ADDRESS, addr_data_regs[i].addr, &addr_data_regs[i].data, 1)) {
+        if (i2c_write(current_slave_address, addr_data_regs[i].addr, &addr_data_regs[i].data, 1)) {
             return VL53L0X_RETURN_I2C_ERROR;
         }
         //TRACE("Wrote value 0x%X to register 0x%X\n", addr_data_regs[i].data, addr_data_regs[i].addr);
     }
     return VL53L0X_RETURN_OK;
+}
+
+static void vl53l0x_set_slave_address(uint8_t address)
+{
+    current_slave_address = address;
 }
