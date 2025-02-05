@@ -14,8 +14,8 @@ The following are the goals I aim to achieve with this project:
 * Get more comfortable within a Linux environment
 
 ## Toolchain
-Makefile + ARM Gnu Toolchain Compiler (GCC)
-Neovim
-Picocom (serial terminal for UART logging)
-STM32Programmer (to flash the program)
-STM32CubeIDE (solely for step debugging if needed)
+* Makefile + ARM Gnu Toolchain Compiler (GCC)
+* Neovim
+* Picocom (serial terminal for UART logging)
+* STM32Programmer (to flash the program)
+* STM32CubeIDE (solely for step debugging if needed)
