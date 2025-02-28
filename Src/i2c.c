@@ -192,6 +192,7 @@ void i2c_initialize(void)
 }
 
 /* Standalone test function to call inside of main, testing to make sure the I2C read and write functions work properly */
+//cppcheck-suppress unusedFunction
 void i2c_test_read_write(void)
 {
     i2c_data data_read;
@@ -336,7 +337,7 @@ static i2c_return_error_e i2c_device_addr_send_1byte_rx(uint8_t device_addr)
     register_read = I2C2->SR1 | I2C2->SR2;
     i2c_stop_condition();
     (void)register_read;
-    return I2C_RETURN_OK;
+    return (I2C2->SR1 & I2C_SR1_AF) ? I2C_RETURN_ACKNOWLEDGE_FAILURE_ERROR : I2C_RETURN_OK;
 }
 
 /* Helper function to send data of multiple lengths, usually used to send 1, 2, or 4 bytes of data.
@@ -353,6 +354,10 @@ static i2c_return_error_e i2c_data_send(const uint8_t* data, const uint8_t data_
     }
     /* Once last byte of data has been sent, need to wait for BTF to set. */
     while (!(I2C2->SR1 & I2C_SR1_BTF));
+    if (I2C2->SR1 & I2C_SR1_AF) {
+        i2c_stop_condition();
+        return I2C_RETURN_ACKNOWLEDGE_FAILURE_ERROR;
+    }
     return I2C_RETURN_OK;
 }
 

@@ -6,7 +6,8 @@
 #include "uart.h"
 #include "ir_receiver.h"
 #include "edge_detect.h"
-#include "i2c.h"
+#include "vl53l0x.h"
+
 
 int main(void)
 {
@@ -15,11 +16,13 @@ int main(void)
 	uart2_initialize();
 	ir_receiver_initialize();
 	edge_detect_initialize();
-	i2c_initialize();
+    vl53l0x_initialize();
 
 	while (1) {
-		i2c_test_read_write();
+        vl53l0x_test_range(VL53L0X_INDEX_MIDDLE);
+        vl53l0x_test_range(VL53L0X_INDEX_LEFT);
+        vl53l0x_test_range(VL53L0X_INDEX_RIGHT);
 		led_toggle(LED_GREEN);
-        systick_delay_ms(2000);
+        systick_delay_ms(500);
 	}
 }
