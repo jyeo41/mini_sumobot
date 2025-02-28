@@ -50,20 +50,19 @@ typedef struct {
 }vl53l0x_addr_data_pair;
 
 
-#if 0
 typedef struct {
+    bool sensor_initialized;
     uint8_t addr;
     gpio_pin_names_e gpio_xshut;
 }vl53l0x_addr_config_t;
 
 static const vl53l0x_addr_config_t vl53l0x_addr_config[] = {
-    [VL53L0X_INDEX_MIDDLE] = { .addr = 0x30, .gpio_xshut = VL53L0X_XSHUT_MIDDLE},
-    [VL53L0X_INDEX_LEFT] = { .addr = 0x31, .gpio_xshut = VL53L0X_XSHUT_LEFT},
-    [VL53L0X_INDEX_RIGHT] = { .addr = 0x32, .gpio_xshut = VL53L0X_XSHUT_RIGHT},
+    [VL53L0X_INDEX_MIDDLE] = {.sensor_initialized = false, .addr = VL53L0X_DEVICE_ADDRESS, .gpio_xshut = VL53L0X_XSHUT_MIDDLE},
+    //[VL53L0X_INDEX_LEFT] = { .addr = 0x31, .gpio_xshut = VL53L0X_XSHUT_LEFT},
+    [VL53L0X_INDEX_RIGHT] = {.sensor_initialized = false, .addr = 0x32, .gpio_xshut = VL53L0X_XSHUT_RIGHT},
 };
-#endif
 
-static bool device_initialized = false;
+//static bool device_initialized = false;
 static uint8_t stop_variable = 0;
 static bool data_initialized = false;
 static bool static_initialized = false;
@@ -81,17 +80,29 @@ static vl53l0x_return_error_e vl53l0x_interrupt_enable(void);
 static vl53l0x_return_error_e vl53l0x_set_sequence_steps_enabled(uint8_t sequence_step);
 static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration_type_e calibration);
 static vl53l0x_return_error_e vl53l0x_ref_calibration_initialize(void);
+static void vl53l0x_initialize_single(vl53l0x_addr_config_t vl53l0x_single);
 static void vl53l0x_set_slave_address(uint8_t address);
 
 
-/* Three things we must do when we initialize this sensor.
+/* Top most initialize function that will call all sub functions required. */
+void vl53l0x_initialize(void)
+{
+    /* Call initialize address for each of the sensors */
+    /* Then call vl53l0x_initialize_single for each of the sensors after */
+    vl53l0x_initialize_single(vl53l0x_addr_config[VL53L0X_INDEX_MIDDLE]);
+}
+
+/* Function used to initialize a SINGLE vl53l0x sensor. This will be called multiple times
+ * for each of the sensor being used. In my project I am only using 3.
+ *
+ * Three things we must do when we initialize this sensor.
  * First check to make sure the ID returned from the sensor is the correct one from the datasheet.
  * Second, for the minimal driver set up we must do "data initialization".
  * Third, we must do "static initialization". */
-void vl53l0x_initialize(void)
+static void vl53l0x_initialize_single(vl53l0x_addr_config_t vl53l0x_single)
 {
-    vl53l0x_set_slave_address(VL53L0X_DEVICE_ADDRESS);
-    ASSERT(!device_initialized);
+    vl53l0x_set_slave_address(vl53l0x_single.addr);
+    ASSERT(!vl53l0x_single.sensor_initialized);
     i2c_initialize();
     TRACE("I2C INITIALIZED SUCCESS!\n");
     vl53l0x_check_id(current_slave_address);
@@ -103,7 +114,7 @@ void vl53l0x_initialize(void)
     vl53l0x_ref_calibration_initialize();
     TRACE("VL53L0X REF CALIBRATION INITIALIZE SUCCESS!\n");
 
-    device_initialized = true;
+    vl53l0x_single.sensor_initialized = true;
 }
 
 void vl53l0x_test_range(void)
