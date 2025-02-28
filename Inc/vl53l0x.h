@@ -17,8 +17,8 @@ typedef enum {
     VL53L0X_INDEX_COUNT,
 }vl53l0x_index_e;
 
-void vl53l0x_initialize(void);
-void vl53l0x_test_range(void);
+vl53l0x_return_error_e vl53l0x_initialize(void);
+void vl53l0x_test_range(vl53l0x_index_e vl53l0x_index);
 vl53l0x_return_error_e vl53l0x_read_range_singular(uint16_t* range);
 
 #endif	/* VL53L0X_H_ */

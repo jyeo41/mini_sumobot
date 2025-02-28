@@ -19,8 +19,9 @@ int main(void)
     vl53l0x_initialize();
 
 	while (1) {
-        vl53l0x_test_range();
+        vl53l0x_test_range(VL53L0X_INDEX_MIDDLE);
+        vl53l0x_test_range(VL53L0X_INDEX_RIGHT);
 		led_toggle(LED_GREEN);
-        systick_delay_ms(100);
+        systick_delay_ms(500);
 	}
 }

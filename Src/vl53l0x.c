@@ -3,6 +3,7 @@
 #include "trace.h"
 #include "assert_handler.h"
 #include "gpio.h"
+#include "systick.h"
 #include <stdint.h>
 
 /* Most of the code for this driver was adapted from Artful Bytes blog post on the VL53L0X sensor.
@@ -15,7 +16,7 @@
  *
  * https://www.artfulbytes.com/vl53l0x-post
  */
-#define VL53L0X_DEVICE_ADDRESS                                          0x29
+#define VL53L0X_DEFAULT_ADDRESS                                          0x29
 #define VL53L0X_EXPECTED_DEVICE_ID                                      0xEE
 #define VL53L0X_IDENTIFICATION_MODEL_ID_REGISTER                        0xC0
 #define VL53L0X_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV_REGISTER               0x89
@@ -32,6 +33,8 @@
 #define VL53L0X_RESULT_INTERRUPT_STATUS_REGISTER                        0x13
 #define VL53L0X_SYSRANGE_START_REGISTER                                 0x00
 #define VL53L0X_GLOBAL_CONFIG_SPAD_ENABLES_REF_0_REGISTER               0xB0
+#define VL53L0X_RESULT_RANGE_STATUS_REGISTER                            0x14
+#define VL53L0X_SLAVE_DEVICE_ADDRESS_REGISTER                           0x8A
 
 #define VL53L0X_RANGE_SEQUENCE_STEP_TCC                                 0x10 /* Target Center Check */
 #define VL53L0X_RANGE_SEQUENCE_STEP_MSRC                                0x04 /* Minimum Signal Rate Check */
@@ -51,25 +54,19 @@ typedef struct {
 
 
 typedef struct {
-    bool sensor_initialized;
     uint8_t addr;
     gpio_pin_names_e gpio_xshut;
 }vl53l0x_addr_config_t;
 
 static const vl53l0x_addr_config_t vl53l0x_addr_config[] = {
-    [VL53L0X_INDEX_MIDDLE] = {.sensor_initialized = false, .addr = VL53L0X_DEVICE_ADDRESS, .gpio_xshut = VL53L0X_XSHUT_MIDDLE},
-    //[VL53L0X_INDEX_LEFT] = { .addr = 0x31, .gpio_xshut = VL53L0X_XSHUT_LEFT},
-    [VL53L0X_INDEX_RIGHT] = {.sensor_initialized = false, .addr = 0x32, .gpio_xshut = VL53L0X_XSHUT_RIGHT},
+    [VL53L0X_INDEX_MIDDLE] = {.addr = 0x30, .gpio_xshut = VL53L0X_XSHUT_MIDDLE},
+    [VL53L0X_INDEX_LEFT] = {.addr = 0x31, .gpio_xshut = VL53L0X_XSHUT_LEFT},
+    [VL53L0X_INDEX_RIGHT] = {.addr = 0x32, .gpio_xshut = VL53L0X_XSHUT_RIGHT},
 };
 
-//static bool device_initialized = false;
+static bool device_initialized = false;
 static uint8_t stop_variable = 0;
-static bool data_initialized = false;
-static bool static_initialized = false;
-static bool default_tuning_initialized = false;
-static bool interrupt_enable_initialized = false;
-static bool ref_calibration_initialized = false;
-static uint8_t current_slave_address = VL53L0X_DEVICE_ADDRESS;
+static uint8_t current_slave_address = VL53L0X_DEFAULT_ADDRESS;
 
 static vl53l0x_return_error_e vl53l0x_check_id(uint8_t device_address);
 static vl53l0x_return_error_e vl53l0x_data_initialize(void);
@@ -82,28 +79,41 @@ static vl53l0x_return_error_e vl53l0x_single_ref_calibration(vl53l0x_calibration
 static vl53l0x_return_error_e vl53l0x_ref_calibration_initialize(void);
 static void vl53l0x_initialize_single(vl53l0x_addr_config_t vl53l0x_single);
 static void vl53l0x_set_slave_address(uint8_t address);
+static vl53l0x_return_error_e vl53l0x_set_device_addresses(void);
+static vl53l0x_return_error_e vl53l0x_set_device_address_single(gpio_pin_names_e xshut_pin, uint8_t address);
 
 
 /* Top most initialize function that will call all sub functions required. */
-void vl53l0x_initialize(void)
+vl53l0x_return_error_e vl53l0x_initialize(void)
 {
+    i2c_initialize();
+    ASSERT(!device_initialized);
+
+    vl53l0x_return_error_e return_error = VL53L0X_RETURN_OK;
+
     /* Call initialize address for each of the sensors */
+    return_error = vl53l0x_set_device_addresses();
+    
     /* Then call vl53l0x_initialize_single for each of the sensors after */
     vl53l0x_initialize_single(vl53l0x_addr_config[VL53L0X_INDEX_MIDDLE]);
+    //vl53l0x_initialize_single(vl53l0x_addr_config[VL53L0X_INDEX_LEFT]);
+    vl53l0x_initialize_single(vl53l0x_addr_config[VL53L0X_INDEX_RIGHT]);
+
+    device_initialized = true;
+
+    return return_error;
 }
 
 /* Function used to initialize a SINGLE vl53l0x sensor. This will be called multiple times
  * for each of the sensor being used. In my project I am only using 3.
  *
  * Three things we must do when we initialize this sensor.
- * First check to make sure the ID returned from the sensor is the correct one from the datasheet.
+ * First check to make sure the ID returned from the sensor is the correct one.
  * Second, for the minimal driver set up we must do "data initialization".
  * Third, we must do "static initialization". */
 static void vl53l0x_initialize_single(vl53l0x_addr_config_t vl53l0x_single)
 {
     vl53l0x_set_slave_address(vl53l0x_single.addr);
-    ASSERT(!vl53l0x_single.sensor_initialized);
-    i2c_initialize();
     TRACE("I2C INITIALIZED SUCCESS!\n");
     vl53l0x_check_id(current_slave_address);
     TRACE("VL53L0X CHECK ID SUCCESS!\n");
@@ -114,22 +124,22 @@ static void vl53l0x_initialize_single(vl53l0x_addr_config_t vl53l0x_single)
     vl53l0x_ref_calibration_initialize();
     TRACE("VL53L0X REF CALIBRATION INITIALIZE SUCCESS!\n");
 
-    vl53l0x_single.sensor_initialized = true;
 }
 
-void vl53l0x_test_range(void)
+void vl53l0x_test_range(vl53l0x_index_e vl53l0x_index)
 {
     uint16_t range = 0;
     vl53l0x_return_error_e return_error = VL53L0X_RETURN_OK;
 
+    vl53l0x_set_slave_address(vl53l0x_addr_config[vl53l0x_index].addr);
     return_error = vl53l0x_read_range_singular(&range);
     if (return_error != VL53L0X_RETURN_OK) {
-        TRACE("Range measurement failed (error %u)\n", return_error);
+        TRACE("SENSOR %u: Range measurement failed (error %u)\n", vl53l0x_index, return_error);
     } else {
         if (range != VL53L0X_OUT_OF_RANGE) {
-            TRACE("Range %u mm\n", range);
+            TRACE("SENSOR %u: Range %u mm\n", vl53l0x_index, range);
         } else {
-            TRACE("OUT OF RANGE\n");
+            TRACE("SENSOR %u: OUT OF RANGE\n", vl53l0x_index);
         }
     }
 }
@@ -223,7 +233,6 @@ static vl53l0x_return_error_e vl53l0x_check_id(uint8_t device_address)
 
 static vl53l0x_return_error_e vl53l0x_data_initialize(void)
 {
-    ASSERT(!data_initialized);
     vl53l0x_return_error_e return_error = VL53L0X_RETURN_OK;
 
     /* Set 2v8 mode. Can also set 1v8 mode, but my breakout board uses 2v8. */
@@ -279,26 +288,22 @@ static vl53l0x_return_error_e vl53l0x_data_initialize(void)
         TRACE("VL53L0X DATA INITIALIZE FAILED: WRITE ADDR DATA PAIR 2\n");
         return return_error;
     }
-    data_initialized = true;
     return return_error;
 }
 
 static vl53l0x_return_error_e vl53l0x_static_initialize(void)
 {
-    ASSERT(!static_initialized);
     vl53l0x_load_default_tuning_settings();
     vl53l0x_interrupt_enable();
     vl53l0x_set_sequence_steps_enabled(VL53L0X_RANGE_SEQUENCE_STEP_DSS +
                                        VL53L0X_RANGE_SEQUENCE_STEP_PRE_RANGE +
                                        VL53L0X_RANGE_SEQUENCE_STEP_FINAL_RANGE);
-    static_initialized = true;
 
     return VL53L0X_RETURN_OK;
 }
 
 /* Unexplained default settings for the sensor from ST's API. */
 static vl53l0x_return_error_e vl53l0x_load_default_tuning_settings(void) {
-    ASSERT(!default_tuning_initialized);
     vl53l0x_return_error_e return_error = VL53L0X_RETURN_OK;
 
     vl53l0x_addr_data_pair default_tuning_addr_data_pair[] = {
@@ -324,7 +329,6 @@ static vl53l0x_return_error_e vl53l0x_load_default_tuning_settings(void) {
         TRACE("VL53L0X MODULE FAILED: LOAD DEFAULT TUNING SETTINGS\n");
         return VL53L0X_RETURN_I2C_ERROR;
     }
-    default_tuning_initialized = true;
     return return_error;
 }
 
@@ -334,7 +338,6 @@ static vl53l0x_return_error_e vl53l0x_interrupt_enable(void)
 {
     uint8_t data = 0x04;
 
-    ASSERT(!interrupt_enable_initialized);
     /* Interrupt on new sample ready. */
     if (i2c_write(current_slave_address, VL53L0X_SYSTEM_INTERRUPT_CONFIG_GPIO_REGISTER, &data, 1)
         != I2C_RETURN_OK) {
@@ -364,7 +367,6 @@ static vl53l0x_return_error_e vl53l0x_interrupt_enable(void)
         return VL53L0X_RETURN_I2C_ERROR;
     }
 
-    interrupt_enable_initialized = true;
     return VL53L0X_RETURN_OK;
 }
 
@@ -380,7 +382,6 @@ static vl53l0x_return_error_e vl53l0x_set_sequence_steps_enabled(uint8_t sequenc
 
 static vl53l0x_return_error_e vl53l0x_ref_calibration_initialize(void)
 {
-    ASSERT(!ref_calibration_initialized);
     vl53l0x_single_ref_calibration(VL53L0X_CALIBRATION_TYPE_VHV);
     //TRACE("VL53L0X VHV SINGLE REF CALIBRATION SUCCESS!\n");
     vl53l0x_single_ref_calibration(VL53L0X_CALIBRATION_TYPE_PHASE);
@@ -391,9 +392,6 @@ static vl53l0x_return_error_e vl53l0x_ref_calibration_initialize(void)
         != VL53L0X_RETURN_OK) {
         TRACE("VL53L0X REF CAL INITIALIZE FAILED: SET SEQUENCE STEPS ENABLED");
     }
-    //TRACE("VL53L0X REF CAL SET SEQUENCE STEPS ENABLED!\n");
-
-    ref_calibration_initialized = true;
 
     return VL53L0X_RETURN_OK;
 }
@@ -470,4 +468,64 @@ static vl53l0x_return_error_e vl53l0x_write_addr_data_pairs(const vl53l0x_addr_d
 static void vl53l0x_set_slave_address(uint8_t address)
 {
     current_slave_address = address;
+}
+
+static vl53l0x_return_error_e vl53l0x_set_device_addresses(void)
+{
+    /* 1. Set the gpio pins for each of the xshut pins.
+     * 2. Make sure they're all off.
+     * 3. Turn them on one by one and then set the addresses. */
+    gpio_configure_pin(VL53L0X_XSHUT_MIDDLE, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED,
+                       GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW);
+    ASSERT(gpio_config_compare(VL53L0X_XSHUT_MIDDLE, GPIOB, 5, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED,
+                               GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW));
+    #if 0
+    gpio_configure_pin(VL53L0X_XSHUT_LEFT, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED,
+                       GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW);
+    ASSERT(gpio_config_compare(VL53L0X_XSHUT_LEFT, GPIOB, 6, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED,
+                               GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW));
+    #endif
+    gpio_configure_pin(VL53L0X_XSHUT_RIGHT, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED,
+                       GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW);
+    ASSERT(gpio_config_compare(VL53L0X_XSHUT_RIGHT, GPIOB, 7, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED,
+                               GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW));
+
+    /* Set the slave address to the original device address temporarily
+     * so we can set the unique addresses. */
+    vl53l0x_set_slave_address(VL53L0X_DEFAULT_ADDRESS);
+
+    gpio_data_output_clear(VL53L0X_XSHUT_MIDDLE);
+    #if 0
+    gpio_data_output_clear(VL53L0X_XSHUT_LEFT);
+    #endif
+    gpio_data_output_clear(VL53L0X_XSHUT_RIGHT);
+
+    vl53l0x_set_device_address_single(VL53L0X_XSHUT_MIDDLE, vl53l0x_addr_config[VL53L0X_INDEX_MIDDLE].addr);
+    #if 0
+    vl53l0x_set_device_address_single(VL53L0X_XSHUT_LEFT, vl53l0x_addr_config[VL53L0X_INDEX_LEFT].addr);
+    #endif
+    vl53l0x_set_device_address_single(VL53L0X_XSHUT_RIGHT, vl53l0x_addr_config[VL53L0X_INDEX_RIGHT].addr);
+
+    return VL53L0X_RETURN_OK;
+}
+
+/* Input parameter is the name of the xshutpin we want to turn on and the address of that xshut pin pulled from the
+ * vl53l0x_addr_config[] array data structure. */
+static vl53l0x_return_error_e vl53l0x_set_device_address_single(gpio_pin_names_e xshut_pin, uint8_t address)
+{
+    /* Then turn on each pin one by one and then set the slave address. */
+    gpio_data_output_set(xshut_pin);
+
+    /* Need some amount of delay before we leave hardware standby. */
+    systick_delay_ms(1000);
+
+    uint8_t data = address & 0x7F;
+
+    /* Set the unique i2c addresses for each slave device. */
+    if (i2c_write(current_slave_address, VL53L0X_SLAVE_DEVICE_ADDRESS_REGISTER, &data, 1)
+        != I2C_RETURN_OK) {
+        return VL53L0X_RETURN_I2C_ERROR;
+    }
+
+    return VL53L0X_RETURN_OK;
 }
