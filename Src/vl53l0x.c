@@ -16,7 +16,7 @@
  *
  * https://www.artfulbytes.com/vl53l0x-post
  */
-#define VL53L0X_DEFAULT_ADDRESS                                          0x29
+#define VL53L0X_DEFAULT_ADDRESS                                         0x29
 #define VL53L0X_EXPECTED_DEVICE_ID                                      0xEE
 #define VL53L0X_IDENTIFICATION_MODEL_ID_REGISTER                        0xC0
 #define VL53L0X_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV_REGISTER               0x89
@@ -96,7 +96,7 @@ vl53l0x_return_error_e vl53l0x_initialize(void)
     
     /* Then call vl53l0x_initialize_single for each of the sensors after */
     vl53l0x_initialize_single(vl53l0x_addr_config[VL53L0X_INDEX_MIDDLE]);
-    //vl53l0x_initialize_single(vl53l0x_addr_config[VL53L0X_INDEX_LEFT]);
+    vl53l0x_initialize_single(vl53l0x_addr_config[VL53L0X_INDEX_LEFT]);
     vl53l0x_initialize_single(vl53l0x_addr_config[VL53L0X_INDEX_RIGHT]);
 
     device_initialized = true;
@@ -479,32 +479,32 @@ static vl53l0x_return_error_e vl53l0x_set_device_addresses(void)
                        GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW);
     ASSERT(gpio_config_compare(VL53L0X_XSHUT_MIDDLE, GPIOB, 5, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED,
                                GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW));
-    #if 0
     gpio_configure_pin(VL53L0X_XSHUT_LEFT, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED,
                        GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW);
     ASSERT(gpio_config_compare(VL53L0X_XSHUT_LEFT, GPIOB, 6, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED,
                                GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW));
-    #endif
     gpio_configure_pin(VL53L0X_XSHUT_RIGHT, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED,
                        GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW);
     ASSERT(gpio_config_compare(VL53L0X_XSHUT_RIGHT, GPIOB, 7, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED,
                                GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW));
+    #if 0
+    #endif
 
     /* Set the slave address to the original device address temporarily
      * so we can set the unique addresses. */
     vl53l0x_set_slave_address(VL53L0X_DEFAULT_ADDRESS);
 
     gpio_data_output_clear(VL53L0X_XSHUT_MIDDLE);
-    #if 0
     gpio_data_output_clear(VL53L0X_XSHUT_LEFT);
-    #endif
     gpio_data_output_clear(VL53L0X_XSHUT_RIGHT);
+    #if 0
+    #endif
 
     vl53l0x_set_device_address_single(VL53L0X_XSHUT_MIDDLE, vl53l0x_addr_config[VL53L0X_INDEX_MIDDLE].addr);
-    #if 0
     vl53l0x_set_device_address_single(VL53L0X_XSHUT_LEFT, vl53l0x_addr_config[VL53L0X_INDEX_LEFT].addr);
-    #endif
     vl53l0x_set_device_address_single(VL53L0X_XSHUT_RIGHT, vl53l0x_addr_config[VL53L0X_INDEX_RIGHT].addr);
+    #if 0
+    #endif
 
     return VL53L0X_RETURN_OK;
 }
