@@ -23,6 +23,8 @@ typedef enum {
 	VL53L0X_XSHUT_MIDDLE,
 	VL53L0X_XSHUT_LEFT,
 	VL53L0X_XSHUT_RIGHT,
+    PWM_LEFT_TIM3_CHANNEL1,
+    PWM_RIGHT_TIM3_CHANNEL2,
 }gpio_pin_names_e;
 
 typedef enum {
