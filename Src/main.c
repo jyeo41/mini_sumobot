@@ -24,6 +24,7 @@ int main(void)
         //vl53l0x_test_range(VL53L0X_INDEX_MIDDLE);
         //vl53l0x_test_range(VL53L0X_INDEX_LEFT);
         //vl53l0x_test_range(VL53L0X_INDEX_RIGHT);
+        pwm_test();
 		led_toggle(LED_GREEN);
         systick_delay_ms(500);
 	}

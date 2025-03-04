@@ -9,5 +9,6 @@ typedef enum {
 
 void pwm_initialize(void);
 void pwm_duty_cycle_set(pwm_e pwm, uint8_t duty_cycle);
+void pwm_test(void);
 
 #endif  /* PWM_H_ */

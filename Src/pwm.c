@@ -4,11 +4,22 @@
 #include "assert_handler.h"
 #include "trace.h"
 #include "gpio.h"
+#include "systick.h"
 
 /* 16000 prescalers results in a 1kHz frequency for the counter. */
 #define TIM3_PRESCALER      16000
 #define ARR_PERIOD          100
-#define DEFAULT_DUTY_CYCLE  50
+#define DEFAULT_DUTY_CYCLE  0
+
+typedef struct {
+    /* CCRx register is where you set the duty cycle for a given PWM channel. */
+    volatile uint32_t *const ccr;
+}pwm_channel_t;
+
+static pwm_channel_t pwm_channels[] = {
+    [PWM_TB6612FNG_MOTOR_LEFT] = {.ccr = &TIM3->CCR1},
+    [PWM_TB6612FNG_MOTOR_RIGHT] = {.ccr = &TIM3->CCR2},
+};
 
 static bool pwm_initialized = false;
 
@@ -78,10 +89,27 @@ void pwm_initialize(void)
     pwm_initialized = true;
 }
 
-#if 0
-// cppcheck-suppress unusedFunction
+void pwm_test(void)
+{
+    uint8_t i, j;
+
+    for (i = 0; i <= 100; i += 25) {
+        TRACE("TB6612FNG Left Motor: Duty Cycle %u\n", i);
+        pwm_duty_cycle_set(PWM_TB6612FNG_MOTOR_LEFT, i);
+        systick_delay_ms(1500);
+    }
+    TRACE("\n");
+
+    for (j = 0; j <= 100; j += 25) {
+        TRACE("TB6612FNG Right Motor: Duty Cycle %u\n", j);
+        pwm_duty_cycle_set(PWM_TB6612FNG_MOTOR_RIGHT, j);
+        systick_delay_ms(1500);
+    }
+    TRACE("\n");
+}
+
 void pwm_duty_cycle_set(pwm_e pwm, uint8_t duty_cycle)
 {
-    
+    ASSERT(duty_cycle <= 100);
+    *pwm_channels[pwm].ccr = duty_cycle;
 }
-#endif

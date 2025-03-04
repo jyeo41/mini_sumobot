@@ -144,7 +144,7 @@ void gpio_configure_pin(gpio_pin_names_e pin_name, gpio_mode_e mode,
 /* Make all the incoming parameters constants because they should be read only.
  * This is to explicitly state these values are to be only used for comparison purposes. */
 bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
-			 const GPIO_TypeDef* const expected_port,
+			 const GPIO_TypeDef *const expected_port,
 			 const uint8_t expected_pin_number,
 			 const gpio_mode_e expected_mode,
 			 const gpio_resistor_e expected_resistor,
