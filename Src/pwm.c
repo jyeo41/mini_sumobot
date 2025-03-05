@@ -17,8 +17,8 @@ typedef struct {
 }pwm_channel_t;
 
 static pwm_channel_t pwm_channels[] = {
-    [PWM_TB6612FNG_MOTOR_LEFT] = {.ccr = &TIM3->CCR1},
-    [PWM_TB6612FNG_MOTOR_RIGHT] = {.ccr = &TIM3->CCR2},
+    [PWM_CHANNEL1] = {.ccr = &TIM3->CCR1},
+    [PWM_CHANNEL2] = {.ccr = &TIM3->CCR2},
 };
 
 static bool pwm_initialized = false;
@@ -89,20 +89,21 @@ void pwm_initialize(void)
     pwm_initialized = true;
 }
 
+// cppcheck-suppress unusedFunction
 void pwm_test(void)
 {
     uint8_t i, j;
 
     for (i = 0; i <= 100; i += 25) {
-        TRACE("TB6612FNG Left Motor: Duty Cycle %u\n", i);
-        pwm_duty_cycle_set(PWM_TB6612FNG_MOTOR_LEFT, i);
+        TRACE("PWM Channel 1: Duty Cycle %u\n", i);
+        pwm_duty_cycle_set(PWM_CHANNEL1, i);
         systick_delay_ms(1500);
     }
     TRACE("\n");
 
     for (j = 0; j <= 100; j += 25) {
-        TRACE("TB6612FNG Right Motor: Duty Cycle %u\n", j);
-        pwm_duty_cycle_set(PWM_TB6612FNG_MOTOR_RIGHT, j);
+        TRACE("PWM Channel 2: Duty Cycle %u\n", j);
+        pwm_duty_cycle_set(PWM_CHANNEL2, j);
         systick_delay_ms(1500);
     }
     TRACE("\n");
