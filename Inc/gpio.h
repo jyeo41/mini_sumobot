@@ -23,6 +23,8 @@ typedef enum {
 	VL53L0X_XSHUT_MIDDLE,
 	VL53L0X_XSHUT_LEFT,
 	VL53L0X_XSHUT_RIGHT,
+    PWM_LEFT_TIM3_CHANNEL1,
+    PWM_RIGHT_TIM3_CHANNEL2,
 }gpio_pin_names_e;
 
 typedef enum {
@@ -83,17 +85,17 @@ typedef enum {
  * Pin name is needed because it'll allow accessing the named pin from the gpio_board_pins[] array 
  *
  * Pin name, port, and pin number are all set to constant because these should not change once set.
- * "GPIO_TypeDef* const" means its a CONSTANT POINTER read from right to left:
+ * "GPIO_TypeDef *const" means its a CONSTANT POINTER read from right to left:
  *	This is an important distinction from "const GPIO_TYPEDEF*".
- *	GPIO_TypeDef* const is what we want because it means the values inside of the registers of the ports can be changed,
+ *	GPIO_TypeDef *const is what we want because it means the values inside of the registers of the ports can be changed,
  *	but the actual pointer to the port itself cannot be.
  *
- *	GPIO_TypeDef* const port = GPIOA // this is the initialization
+ *	GPIO_TypeDef *const port = GPIOA // this is the initialization
  *	port = GPIOD			 // this is INVALID because the port shouldn't be changed once set to that pin.
  *
  */
 typedef struct {
-	GPIO_TypeDef* const port;
+	GPIO_TypeDef *const port;
 	const uint8_t pin_number;
 	gpio_mode_e mode;
 	gpio_resistor_e resistor;

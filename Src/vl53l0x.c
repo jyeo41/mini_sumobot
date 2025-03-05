@@ -126,6 +126,7 @@ static void vl53l0x_initialize_single(vl53l0x_addr_config_t vl53l0x_single)
 
 }
 
+// cppcheck-suppress unusedFunction
 void vl53l0x_test_range(vl53l0x_index_e vl53l0x_index)
 {
     uint16_t range = 0;

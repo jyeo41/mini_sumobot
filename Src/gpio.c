@@ -31,6 +31,8 @@ static gpio_pin_t gpio_board_pins[] = {
     [VL53L0X_XSHUT_MIDDLE] =    {GPIOB, 5, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
     [VL53L0X_XSHUT_LEFT] =      {GPIOB, 6, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
     [VL53L0X_XSHUT_RIGHT] =     {GPIOB, 7, GPIO_MODE_OUTPUT, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [PWM_LEFT_TIM3_CHANNEL1] =  {GPIOC, 6, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
+    [PWM_RIGHT_TIM3_CHANNEL2] = {GPIOC, 7, GPIO_MODE_ALTERNATE, GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_LOW},
 };
 
 /* Mapping pin numbers to their corresponding MODE register as a 2D array.
@@ -142,7 +144,7 @@ void gpio_configure_pin(gpio_pin_names_e pin_name, gpio_mode_e mode,
 /* Make all the incoming parameters constants because they should be read only.
  * This is to explicitly state these values are to be only used for comparison purposes. */
 bool gpio_config_compare(const gpio_pin_names_e pin_to_check,
-			 const GPIO_TypeDef* const expected_port,
+			 const GPIO_TypeDef *const expected_port,
 			 const uint8_t expected_pin_number,
 			 const gpio_mode_e expected_mode,
 			 const gpio_resistor_e expected_resistor,
