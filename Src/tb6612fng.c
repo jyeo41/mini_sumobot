@@ -8,6 +8,16 @@
 
 static bool tb6612fng_initialized = false;
 
+typedef struct input_pins {
+    gpio_pin_names_e in1;
+    gpio_pin_names_e in2;
+}tb6612fng_input_pins_t;
+
+static tb6612fng_input_pins_t input_pins[] = {
+    [TB6612FNG_MOTOR_LEFT] = {TB6612FNG_MOTOR_LEFT_IN1, TB6612FNG_MOTOR_LEFT_IN2},
+    [TB6612FNG_MOTOR_RIGHT] = {TB6612FNG_MOTOR_RIGHT_IN1, TB6612FNG_MOTOR_RIGHT_IN2},
+};
+
 void tb6612fng_initialize(void)
 {
     ASSERT(!tb6612fng_initialized);
@@ -22,6 +32,16 @@ void tb6612fng_initialize(void)
     gpio_configure_pin(TB6612FNG_MOTOR_LEFT_IN2, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED, 
                        GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM);
     ASSERT(gpio_config_compare(TB6612FNG_MOTOR_LEFT_IN2, GPIOC, 9, GPIO_MODE_OUTPUT,
+                               GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM));
+
+    gpio_configure_pin(TB6612FNG_MOTOR_RIGHT_IN1, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED, 
+                       GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM);
+    ASSERT(gpio_config_compare(TB6612FNG_MOTOR_RIGHT_IN1, GPIOC, 10, GPIO_MODE_OUTPUT,
+                               GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM));
+
+    gpio_configure_pin(TB6612FNG_MOTOR_RIGHT_IN2, GPIO_MODE_OUTPUT, GPIO_AF_NONE, GPIO_RESISTOR_DISABLED, 
+                       GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM);
+    ASSERT(gpio_config_compare(TB6612FNG_MOTOR_RIGHT_IN2, GPIOC, 11, GPIO_MODE_OUTPUT,
                                GPIO_RESISTOR_DISABLED, GPIO_OTYPE_PUSHPULL, GPIO_SPEED_MEDIUM));
     tb6612fng_initialized = true;
 }
@@ -38,51 +58,41 @@ void tb6612fng_test(void)
     const uint8_t length = sizeof(speeds)/sizeof(speeds[0]);
 
     for (uint8_t i = 0; i < length; i++) {
-        TRACE("TB6612FNG direction: %d and speed: %d\n", directions[i], speeds[i]);
+        if (i == TB6612FNG_DIRECTION_FORWARD) {
+            TRACE("TB6612FNG direction: Forward and Speed: %d\n", speeds[i]);
+        } else {
+            TRACE("TB6612FNG direction: Reverse and Speed: %d\n", speeds[i]);
+        }
         tb6612fng_direction(TB6612FNG_MOTOR_LEFT, directions[i]);
         tb6612fng_speed(TB6612FNG_MOTOR_LEFT, speeds[i]);
+        tb6612fng_direction(TB6612FNG_MOTOR_RIGHT, directions[i]);
+        tb6612fng_speed(TB6612FNG_MOTOR_RIGHT, speeds[i]);
         systick_delay_ms(2000);
-
         
         tb6612fng_direction(TB6612FNG_MOTOR_LEFT, TB6612FNG_DIRECTION_STOP);
         tb6612fng_speed(TB6612FNG_MOTOR_LEFT, 0);
-        systick_delay_ms(1000);
+        tb6612fng_direction(TB6612FNG_MOTOR_RIGHT, TB6612FNG_DIRECTION_STOP);
+        tb6612fng_speed(TB6612FNG_MOTOR_RIGHT, 0);
+        systick_delay_ms(1500);
     }
 }
 
 void tb6612fng_direction(tb6612fng_motor_e motor, tb6612fng_direction_e direction)
 {
     /* Datasheet for the breakboard gives the truth table for the following directions */
-    if (motor == TB6612FNG_MOTOR_LEFT) {
-        switch (direction) {
-            case TB6612FNG_DIRECTION_FORWARD:
-                gpio_data_output_set(TB6612FNG_MOTOR_LEFT_IN1);
-                gpio_data_output_clear(TB6612FNG_MOTOR_LEFT_IN2);
-                break;
-            case TB6612FNG_DIRECTION_REVERSE:
-                gpio_data_output_set(TB6612FNG_MOTOR_LEFT_IN2);
-                gpio_data_output_clear(TB6612FNG_MOTOR_LEFT_IN1);
-                break;
-            case TB6612FNG_DIRECTION_STOP:
-                gpio_data_output_clear(TB6612FNG_MOTOR_LEFT_IN1);
-                gpio_data_output_clear(TB6612FNG_MOTOR_LEFT_IN2);
-                break;
-        }
-    } else {
-        switch (direction) {
-            case TB6612FNG_DIRECTION_FORWARD:
-                gpio_data_output_set(TB6612FNG_MOTOR_RIGHT_IN1);
-                gpio_data_output_clear(TB6612FNG_MOTOR_RIGHT_IN2);
-                break;
-            case TB6612FNG_DIRECTION_REVERSE:
-                gpio_data_output_set(TB6612FNG_MOTOR_RIGHT_IN2);
-                gpio_data_output_clear(TB6612FNG_MOTOR_RIGHT_IN1);
-                break;
-            case TB6612FNG_DIRECTION_STOP:
-                gpio_data_output_clear(TB6612FNG_MOTOR_RIGHT_IN1);
-                gpio_data_output_clear(TB6612FNG_MOTOR_RIGHT_IN2);
-                break;
-        }
+    switch (direction) {
+        case TB6612FNG_DIRECTION_FORWARD:
+            gpio_data_output_set(input_pins[motor].in1);
+            gpio_data_output_clear(input_pins[motor].in2);
+            break;
+        case TB6612FNG_DIRECTION_REVERSE:
+            gpio_data_output_set(input_pins[motor].in2);
+            gpio_data_output_clear(input_pins[motor].in1);
+            break;
+        case TB6612FNG_DIRECTION_STOP:
+            gpio_data_output_clear(input_pins[motor].in1);
+            gpio_data_output_clear(input_pins[motor].in2);
+            break;
     }
 }
 

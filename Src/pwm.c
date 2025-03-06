@@ -6,8 +6,8 @@
 #include "gpio.h"
 #include "systick.h"
 
-/* 16000 prescalers results in a 1kHz frequency for the counter. */
-#define TIM3_PRESCALER      16000
+/* 16000 prescalers results in a 20kHz frequency for the counter. */
+#define TIM3_PRESCALER      800
 #define ARR_PERIOD          100
 #define DEFAULT_DUTY_CYCLE  0
 
