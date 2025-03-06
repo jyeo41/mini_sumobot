@@ -3,8 +3,8 @@
 #include <stdint.h>
 
 typedef enum {
-    PWM_TB6612FNG_MOTOR_LEFT,
-    PWM_TB6612FNG_MOTOR_RIGHT,
+    PWM_CHANNEL1,
+    PWM_CHANNEL2,
 }pwm_e;
 
 void pwm_initialize(void);
