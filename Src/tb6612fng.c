@@ -49,54 +49,54 @@ void tb6612fng_initialize(void)
 void tb6612fng_test(void)
 {
     const uint8_t speeds[] = {100, 75, 50, 25};
-    const tb6612fng_direction_e directions[] = {
-        TB6612FNG_DIRECTION_FORWARD,
-        TB6612FNG_DIRECTION_REVERSE,
-        TB6612FNG_DIRECTION_FORWARD,
-        TB6612FNG_DIRECTION_REVERSE,
+    const tb6612fng_mode_e modes[] = {
+        TB6612FNG_MODE_FORWARD,
+        TB6612FNG_MODE_REVERSE,
+        TB6612FNG_MODE_FORWARD,
+        TB6612FNG_MODE_REVERSE,
     };
     const uint8_t length = sizeof(speeds)/sizeof(speeds[0]);
 
     for (uint8_t i = 0; i < length; i++) {
-        if (i == TB6612FNG_DIRECTION_FORWARD) {
+        if (i == TB6612FNG_MODE_FORWARD) {
             TRACE("TB6612FNG direction: Forward and Speed: %d\n", speeds[i]);
         } else {
             TRACE("TB6612FNG direction: Reverse and Speed: %d\n", speeds[i]);
         }
-        tb6612fng_direction(TB6612FNG_MOTOR_LEFT, directions[i]);
-        tb6612fng_speed(TB6612FNG_MOTOR_LEFT, speeds[i]);
-        tb6612fng_direction(TB6612FNG_MOTOR_RIGHT, directions[i]);
-        tb6612fng_speed(TB6612FNG_MOTOR_RIGHT, speeds[i]);
+        tb6612fng_mode_set(TB6612FNG_MOTOR_LEFT, modes[i]);
+        tb6612fng_dutycycle_set(TB6612FNG_MOTOR_LEFT, speeds[i]);
+        tb6612fng_mode_set(TB6612FNG_MOTOR_RIGHT, modes[i]);
+        tb6612fng_dutycycle_set(TB6612FNG_MOTOR_RIGHT, speeds[i]);
         systick_delay_ms(2000);
         
-        tb6612fng_direction(TB6612FNG_MOTOR_LEFT, TB6612FNG_DIRECTION_STOP);
-        tb6612fng_speed(TB6612FNG_MOTOR_LEFT, 0);
-        tb6612fng_direction(TB6612FNG_MOTOR_RIGHT, TB6612FNG_DIRECTION_STOP);
-        tb6612fng_speed(TB6612FNG_MOTOR_RIGHT, 0);
+        tb6612fng_mode_set(TB6612FNG_MOTOR_LEFT, TB6612FNG_MODE_STOP);
+        tb6612fng_dutycycle_set(TB6612FNG_MOTOR_LEFT, 0);
+        tb6612fng_mode_set(TB6612FNG_MOTOR_RIGHT, TB6612FNG_MODE_STOP);
+        tb6612fng_dutycycle_set(TB6612FNG_MOTOR_RIGHT, 0);
         systick_delay_ms(1500);
     }
 }
 
-void tb6612fng_direction(tb6612fng_motor_e motor, tb6612fng_direction_e direction)
+void tb6612fng_mode_set(tb6612fng_motor_e motor, tb6612fng_mode_e mode)
 {
     /* Datasheet for the breakboard gives the truth table for the following directions */
-    switch (direction) {
-        case TB6612FNG_DIRECTION_FORWARD:
+    switch (mode) {
+        case TB6612FNG_MODE_FORWARD:
             gpio_data_output_set(input_pins[motor].in1);
             gpio_data_output_clear(input_pins[motor].in2);
             break;
-        case TB6612FNG_DIRECTION_REVERSE:
+        case TB6612FNG_MODE_REVERSE:
             gpio_data_output_set(input_pins[motor].in2);
             gpio_data_output_clear(input_pins[motor].in1);
             break;
-        case TB6612FNG_DIRECTION_STOP:
+        case TB6612FNG_MODE_STOP:
             gpio_data_output_clear(input_pins[motor].in1);
             gpio_data_output_clear(input_pins[motor].in2);
             break;
     }
 }
 
-void tb6612fng_speed(tb6612fng_motor_e motor, uint8_t duty_cycle)
+void tb6612fng_dutycycle_set(tb6612fng_motor_e motor, uint8_t duty_cycle)
 {
     pwm_e pwm_channel;
 
