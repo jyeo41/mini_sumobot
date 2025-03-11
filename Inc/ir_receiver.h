@@ -30,6 +30,7 @@ typedef enum {
 }ir_receiver_cmd_e;
 
 void ir_receiver_initialize(void);
-const char* ir_receiver_get_cmd(void);
+ir_receiver_cmd_e ir_receiver_get_cmd(void);
+void ir_receiver_test(void);
 
 #endif /* IR_RECEIVER_H_ */

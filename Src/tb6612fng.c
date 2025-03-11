@@ -46,6 +46,7 @@ void tb6612fng_initialize(void)
     tb6612fng_initialized = true;
 }
 
+// cppcheck-suppress unusedFunction
 void tb6612fng_test(void)
 {
     const uint8_t speeds[] = {100, 75, 50, 25};

@@ -18,6 +18,7 @@
  * bare metal, this decouples the assert_handler to work on its own if the led_driver file were to break. */
 void assert_handler(const char* file, int line)
 {
+    /* TODO: IF ASSERT TRIGGERS, WE SHOULD IMMEDIATELY STOP THE MOTORS TO STOP THE BOT. */
     trace_initialize();
     TRACE("Assertion Failed %s:%d", file, line);
     /* Toggle a software breakpoint to track in the debugger where it got triggered

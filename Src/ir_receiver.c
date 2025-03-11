@@ -91,6 +91,7 @@ static void timer2_interrupt_clear(void);
 static void timer2_interrupt_channel1_enable(void);
 static void timer2_interrupt_channel1_disable(void);
 static uint32_t timer2_count_get(void);
+static const char* ir_receiver_cmd_test(void);
 
 void ir_receiver_initialize(void)
 {
@@ -105,8 +106,34 @@ void ir_receiver_initialize(void)
     ir_receiver_initialized = true;
 }
 
+ir_receiver_cmd_e ir_receiver_get_cmd(void)
+{
+    /* Handle possible race condition of reading from ring buffer and ISR potentially writing to it
+     * at the same time.
+     */
+    ir_receiver_cmd_e ir_cmd = IR_RECEIVER_CMD_NONE;
+
+    timer2_interrupt_channel1_disable();
+
+    /* Extract command from command buffer if the ring buffer is not empty.
+     * If get and put ptr are ==, this means it is empty.
+     */
+    if (cmd_get_ptr != cmd_put_ptr) {
+        ir_cmd = cmd_buffer[cmd_get_ptr++];
+        cmd_get_ptr &= (CMD_BUFFER_LENGTH - 1);
+    }
+    timer2_interrupt_channel1_enable();
+
+    return ir_cmd;
+}
+
 // cppcheck-suppress unusedFunction
-const char* ir_receiver_get_cmd(void)
+void ir_receiver_test(void)
+{
+    TRACE("IR COMMAND: %s\n", ir_receiver_cmd_test());
+}
+
+static const char* ir_receiver_cmd_test(void)
 {
     /* Handle possible race condition of reading from ring buffer and ISR potentially writing to it
      * at the same time.

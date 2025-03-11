@@ -21,11 +21,7 @@ int main(void)
     tb6612fng_initialize();
 
 	while (1) {
-        //vl53l0x_test_range(VL53L0X_INDEX_MIDDLE);
-        //vl53l0x_test_range(VL53L0X_INDEX_LEFT);
-        //vl53l0x_test_range(VL53L0X_INDEX_RIGHT);
-        //pwm_test();
-        tb6612fng_test();
+        TRACE("IR COMMAND: %u\n", ir_receiver_get_cmd());
 		led_toggle(LED_GREEN);
         systick_delay_ms(500);
 	}
