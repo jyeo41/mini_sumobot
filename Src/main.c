@@ -7,7 +7,7 @@
 #include "ir_receiver.h"
 #include "edge_detect.h"
 #include "vl53l0x.h"
-#include "tb6612fng.h"
+#include "app_move.h"
 
 
 int main(void)
@@ -18,11 +18,11 @@ int main(void)
 	ir_receiver_initialize();
 	edge_detect_initialize();
     vl53l0x_initialize();
-    tb6612fng_initialize();
+    move_initialize();
 
 	while (1) {
-        TRACE("IR COMMAND: %u\n", ir_receiver_get_cmd());
+        move_test();
 		led_toggle(LED_GREEN);
-        systick_delay_ms(500);
+        systick_delay_ms(100);
 	}
 }

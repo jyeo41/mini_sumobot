@@ -6,7 +6,7 @@ typedef enum {
     MOVE_DIRECTION_FORWARD,
     MOVE_DIRECTION_REVERSE,
     MOVE_DIRECTION_ROTATE_LEFT,
-    MOVE_DIRECTION_ROTATE_RIGHT
+    MOVE_DIRECTION_ROTATE_RIGHT,
 }move_direction_e;
 
 /* Enum for the different speed thresholds of the motors. */
